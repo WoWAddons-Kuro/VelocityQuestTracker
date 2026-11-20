@@ -3,8 +3,9 @@
 -- re-renders every frame (cheap: only colours change).
 --
 -- Part 3 (nearby work) has two views, "map" (UI\MapView.lua) and "lines" (UI\Nearby.lua), chosen per
--- character (VelocityQuestTrackerCharDB.nearbyView). Two small tab buttons appear beside part 3 while
--- the panel is hovered, on the side away from the screen edge (same test as the place-line card).
+-- character (VelocityQuestTrackerCharDB.nearbyView). While the mouse is anywhere over the panel a
+-- VQT_HoverStrip appears ABOVE it (one row, panel width) carrying the view toggle: "Map | Lines".
+-- It is the home for any future view/option control, so the panel body stays chrome-free.
 local ADDON_NAME, NS = ...
 local T, Model, Blocks, Lines, Nearby, MapView = NS.Theme, NS.Model, NS.Blocks, NS.Lines, NS.Nearby, NS.MapView
 
@@ -13,8 +14,9 @@ NS.Panel = Panel
 
 local frame
 local parts = {}
-local tabs                    -- VQT_NearbyViewTabs frame: two buttons, map | lines
-local TAB_PX = 20
+local tabs                    -- VQT_HoverStrip frame: a row above the panel with the view toggle
+local STRIP_H = 18
+local STRIP_GAP = 4           -- between strip bottom and panel top
 
 local function Settings() return NS.db and NS.db.settings or {} end
 
@@ -30,14 +32,22 @@ local function HoverAllowed() return not Settings().RequireShiftForHover or IsSh
 
 local function BuildTabs()
   tabs = CreateFrame("Frame", nil, frame)
-  tabs:SetSize(TAB_PX, TAB_PX * 2 + 4)
+  tabs:SetSize(T.PanelWidth, STRIP_H)
+  tabs:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, STRIP_GAP)
   tabs:Hide()
-  local function Tab(label, view, yOff)
+  tabs.bg = tabs:CreateTexture(nil, "BACKGROUND"); tabs.bg:SetAllPoints()
+  T.SetColour(tabs.bg, T.Tone.Wash, T.WashAlpha)
+  -- Segmented toggle, left-aligned: [ ◎ Map ] [ ≡ Lines ]. Each tab is a text button with its own wash.
+  local x = T.PadX
+  local function Tab(glyph, label, view)
     local b = CreateFrame("Button", nil, tabs)
-    b:SetSize(TAB_PX, TAB_PX)
-    b:SetPoint("TOP", 0, yOff)
+    b:SetHeight(STRIP_H)
     b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints()
-    b.text = T.Text(b, T.LabelSize, T.Tone.Label); b.text:SetPoint("CENTER"); b.text:SetJustifyH("CENTER"); b.text:SetText(label)
+    b.text = T.Text(b, T.LabelSize, T.Tone.Label); b.text:SetPoint("LEFT", 6, 0); b.text:SetPoint("RIGHT", -6, 0); b.text:SetJustifyH("CENTER")
+    b.text:SetText(glyph .. " " .. label)
+    b:SetWidth(b.text:GetStringWidth() + 12)
+    b:SetPoint("LEFT", tabs, "LEFT", x, 0)
+    x = x + b:GetWidth() + 2
     b.view = view
     b:SetScript("OnClick", function(self)
       if Settings().RequireShiftToInteract and not IsShiftKeyDown() then return end
@@ -47,8 +57,8 @@ local function BuildTabs()
     b:SetScript("OnLeave", function(self) Panel.RefreshTabs() end)
     return b
   end
-  tabs.map = Tab("\226\151\142", "map", 0)          -- ◎  (circle with dot) stands for the field
-  tabs.lines = Tab("\226\137\161", "lines", -(TAB_PX + 4))   -- ≡  three lines
+  tabs.map = Tab("\226\151\142", "Map", "map")          -- ◎
+  tabs.lines = Tab("\226\137\161", "Lines", "lines")    -- ≡
 end
 
 function Panel.RefreshTabs()
@@ -61,15 +71,8 @@ function Panel.RefreshTabs()
   end
 end
 
--- Show tabs beside part 3 while the panel is hovered; side = away from the nearer screen edge.
-local function PositionTabs()
-  if not tabs or not parts.nearby then return end
-  local cx = frame:GetCenter()
-  local openLeft = cx and cx >= (UIParent:GetWidth() or 0) / 2
-  tabs:ClearAllPoints()
-  if openLeft then tabs:SetPoint("TOPRIGHT", parts.nearbyHolder, "TOPLEFT", -4, 0)
-  else tabs:SetPoint("TOPLEFT", parts.nearbyHolder, "TOPRIGHT", 4, 0) end
-end
+-- The strip is anchored once (above the panel's top edge); nothing to reposition.
+local function PositionTabs() end
 
 function Panel.Frame() return frame end
 
@@ -129,10 +132,11 @@ function Panel.Create()
   parts.nearbyHolder = parts.lines
   parts.other = Lines.AttachOtherZones(frame)
   BuildTabs()
-  -- Tabs show while the mouse is over the panel or the tabs themselves. The panel does not take
-  -- the mouse at rest (click-through), so hover is read on OnUpdate via IsMouseOver.
+  -- The strip shows while the mouse is over the panel, the strip, or the gap between them. The panel
+  -- does not take the mouse at rest (click-through), so hover is read on OnUpdate via IsMouseOver;
+  -- the panel's IsMouseOver is given a top margin so the gap does not flicker the strip.
   frame:HookScript("OnUpdate", function(self)
-    local over = HoverAllowed() and (self:IsMouseOver() or tabs:IsMouseOver()) and parts.nearbyHolder:IsShown()
+    local over = HoverAllowed() and (self:IsMouseOver(STRIP_H + STRIP_GAP, 0, 0, 0) or tabs:IsMouseOver())
     if over and not tabs:IsShown() then PositionTabs(); Panel.RefreshTabs(); tabs:Show()
     elseif not over and tabs:IsShown() then tabs:Hide() end
   end)
