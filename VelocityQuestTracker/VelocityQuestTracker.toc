@@ -5,7 +5,8 @@
 ## Version: @project-version@
 ## SavedVariables: VelocityQuestTrackerDB
 ## SavedVariablesPerCharacter: VelocityQuestTrackerCharDB
-## OptionalDeps: LibStub, LibEditMode, QuestieDB
+## RequiredDeps: QuestieDB
+## OptionalDeps: LibStub, LibEditMode
 ## X-Website: https://github.com/WoWAddons-Kuro/VelocityQuestTracker
 
 Libs\LibStub\LibStub.lua

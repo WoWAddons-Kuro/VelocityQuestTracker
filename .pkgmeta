@@ -3,6 +3,9 @@ package-as: VelocityQuestTracker
 move-folders:
   VelocityQuestTracker/VelocityQuestTracker: VelocityQuestTracker
 
+required-dependencies:
+  - questiedb
+
 ignore:
   - ".git*"
   - "*.md"
