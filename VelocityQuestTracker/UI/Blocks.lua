@@ -170,19 +170,20 @@ local function RenderRow(block, idx, obj, quest, now)
       if SegStep(seg, now) then animating = true end
     end
   end
-  if allDone and not animating then
-    T.SetColour(row.name, T.Tone.Label); T.SetColour(row.count, T.Tone.Label)
-  elseif allDone then
-    -- dim along with the last fading segment
-    local last = row.segs[obj.need]
-    local c = last and last.state == "fade" and SegColour(last, now) or T.Tone.Todo
-    if last and last.state == "fade" then
-      local fadeS = s.FadeSeconds or 1
-      local t = Util.Clamp((now - last.t0) / fadeS, 0, 1)
-      local r, g, b = Util.Lerp3(T.Tone.Todo, T.Tone.Label, t)
-      c = { r, g, b }
-    end
+  if allDone then
+    -- Text dims on the same clock as the last unit: bright for Hold after it landed, then a Fade to
+    -- the label tone. Keyed to the unit's landing time (model), not the segment's phase, so a row
+    -- that arrived already complete (or was mid-hold at /reload) dims on schedule instead of
+    -- sitting bright until some animation happens to finish.
+    local landedAt = recent and recent[obj.need]
+    local hold, fadeS = s.HoldSeconds or 4, s.FadeSeconds or 1
+    local since = landedAt and (now - landedAt) or math.huge
+    local c
+    if since < hold then c = T.Tone.Todo
+    elseif since < hold + fadeS then local r, g, b = Util.Lerp3(T.Tone.Todo, T.Tone.Label, (since - hold) / fadeS); c = { r, g, b }
+    else c = T.Tone.Label end
     T.SetColour(row.name, c); T.SetColour(row.count, c)
+    if since < hold + fadeS then animating = true end
   else
     T.SetColour(row.name, T.Tone.Todo); T.SetColour(row.count, T.Tone.Todo)
   end
