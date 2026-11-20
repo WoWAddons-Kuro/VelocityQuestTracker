@@ -13,6 +13,7 @@ local DEFAULT_SETTINGS = {
   RequireShiftToInteract = false,
   RequireShiftForHover = false,
   ActiveWindowSeconds = 300,
+  ErrandGraceSeconds = 120,              -- a just-completed quest is a hand-in card even out of zone for this long
   HoldSeconds = 4,
   FadeSeconds = 1,
   HideCompletedSegments = false,

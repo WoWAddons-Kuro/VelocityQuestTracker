@@ -131,6 +131,35 @@ function Lines.RenderTurnIn(snap)
 end
 
 function Lines.RenderOtherZones(snap)
-  local h = Render(Lines.other, snap.otherZones, function(g) return string.format("+%d in %s", #g.quests, g.zone) end, nil, GetTime())
+  -- Zone lines, then any grace cards (model "other_card") as blocks directly under their zone line.
+  -- Render() lays the lines contiguously; when a zone has cards we re-anchor the FOLLOWING lines
+  -- down by the cards' height, so the card sits visually beneath its own "+N in Zone" heading.
+  local list = Lines.other
+  local now = GetTime()
+  local h = Render(list, snap.otherZones, function(g) return string.format("+%d in %s", #g.quests, g.zone) end, nil, now)
+  local extra = 0
+  local y = 0
+  for i, g in ipairs(snap.otherZones) do
+    local row = list.rows[i]
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", list, "TOPLEFT", T.PadX, -y)
+    row:SetPoint("RIGHT", list, "RIGHT", -T.PadX, 0)
+    y = y + LINE_H + 2
+    if g.cards and #g.cards > 0 then
+      local ch = NS.Blocks.RenderOtherCards(list, g.cards, now, y)
+      y = y + ch + 2
+      extra = extra + ch + 2
+    end
+  end
+  if #snap.otherZones == 0 then NS.Blocks.RenderOtherCards(list, {}, now, 0) end
+  -- any quest no longer an other_card gives its frame back so part 2 can take it over
+  local still = {}
+  for _, g in ipairs(snap.otherZones) do for _, q in ipairs(g.cards or {}) do still[q.questID] = true end end
+  for _, q in ipairs(snap.quests) do if not still[q.questID] then NS.Blocks.ReleaseOtherCard(q.questID) end end
+  if h > 0 then
+    h = h + extra
+    list:SetHeight(math.max(1, h))
+  end
+  Lines.otherAnimating = extra > 0        -- Panel keeps re-rendering while a card's segments can animate
   return h
 end

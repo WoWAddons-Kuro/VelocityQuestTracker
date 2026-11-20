@@ -125,6 +125,8 @@ function Options.Create()
   blk:Add(CountRadio("completed", "completed counts", "\"1/4\" -- done over total."), 16, -4, 4)
   blk:Add(Slider(blk, "VelocityQuestTrackerOptActive", "ActiveWindowSeconds", 300, 60, 900, 30,
     function(v) return string.format("A quest stays in the block for %d s after you act on it", v) end), 44, -10)
+  blk:Add(Slider(blk, "VelocityQuestTrackerOptErrand", "ErrandGraceSeconds", 120, 0, 600, 15,
+    function(v) return string.format("A quest that just became complete is shown as a hand-in card even out of zone for %d s", v) end), 44, -10)
   blk:Add(Check(blk, "HideCompletedSegments", "Hide completed segments", "Done units are not drawn; the bar shows only what is left."), 26, -10)
   blk:Add(Check(blk, "HideCompletedRows", "Hide fully completed quest objectives", "An objective row leaves the block once its last unit has faded."), 26)
   blk:Add(Check(blk, "AutoUntrackInactive", "Auto-untrack inactive quests", "Tracking a quest in the quest log makes it active here. Ticked: when a quest ages out of the active block it is also untracked in the quest log, so tracked == active."), 26)

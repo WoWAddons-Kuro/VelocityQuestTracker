@@ -370,6 +370,37 @@ function Blocks.Attach(parent)
   return container
 end
 
+-- Other-zone grace cards (model category "other_card"): a block for a quest just accepted / just
+-- completed whose work is elsewhere, drawn in PART 4 under that zone's "+N in Zone" line so the zone
+-- is the heading. Separate pool from the part-2 blocks so the same quest moving part 2 <-> part 4
+-- never fights over one frame. Returns height drawn.
+local otherPool = {}            -- questID -> block frame (parented to the caller's list)
+function Blocks.RenderOtherCards(parent, cards, now, y0)
+  local y = y0
+  local live = {}
+  for _, q in ipairs(cards) do
+    live[q.questID] = true
+    local b = otherPool[q.questID]
+    if not b then
+      -- AcquireBlock parents to the part-2 container and registers in blockOrder; take it out again
+      b = AcquireBlock(q.questID); blocksByQuest[q.questID] = nil
+      for i = #blockOrder, 1, -1 do if blockOrder[i] == q.questID then table.remove(blockOrder, i) end end
+      b:SetParent(parent); otherPool[q.questID] = b
+    end
+    b.quest = q; b.departing = nil
+    T.ApplyWash(b.wash); T.ApplyWash(b.hover, 1)
+    local h
+    if q.isComplete then h = RenderHandInCard(b, q, now) else h = RenderBlock(b, q, now); if b.handin then b.handin:Hide() end end
+    b:ClearAllPoints(); b:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -y); b:Show()
+    y = y + h + 2
+  end
+  for qid, b in pairs(otherPool) do if not live[qid] then b:Hide() end end
+  return y - y0
+end
+
+-- A quest leaving the other-card pool for the part-2 block must get a fresh frame there.
+function Blocks.ReleaseOtherCard(questID) local b = otherPool[questID]; if b then b:Hide(); otherPool[questID] = nil end end
+
 -- Draw every active quest in slot order. Completed quests whose last fade is still running are
 -- kept (the model already moved them to turnin; we keep the block until its animation ends).
 local lingering = {}   -- questID -> quest (complete, animating out)

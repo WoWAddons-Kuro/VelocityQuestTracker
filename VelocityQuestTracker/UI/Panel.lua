@@ -122,7 +122,7 @@ function Panel.Render()
 end
 
 local function OnUpdate()
-  if Blocks.animating or Lines.highlighting or MapView.easing then Panel.Render() end
+  if Blocks.animating or Lines.highlighting or Lines.otherAnimating or MapView.easing then Panel.Render() end
   -- Hover strip. The panel does not take the mouse at rest (click-through), so hover is read here
   -- via IsMouseOver; the panel rect is given a top margin so the gap to the strip does not flicker.
   -- (This USED to be a HookScript("OnUpdate") installed BEFORE SetScript("OnUpdate", OnUpdate), which
