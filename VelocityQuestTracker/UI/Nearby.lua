@@ -130,6 +130,10 @@ function Nearby.Render(snap)
         local row = AcquireLine(i)
         row.quest = q
         T.ApplyWash(row.hover, 2)                    -- terrain band may have changed
+        -- re-apply tones every render (T.Text bakes colour at creation; see Lines.lua)
+        T.SetColour(row.name, T.Tone.Near)
+        if row.shape then row.shape:SetVertexColor(T.Tone.Near[1], T.Tone.Near[2], T.Tone.Near[3]); if row.shape.extra then row.shape.extra:SetVertexColor(T.Tone.Near[1], T.Tone.Near[2], T.Tone.Near[3]) end end
+        for _, m in ipairs(row.spark.marks) do T.SetColour(m, T.Tone.Near) end
         if NS.HoverCard.IsShownFor(row) then NS.HoverCard.ShowBlock(row, q) end   -- live refresh under the cursor
         SetShape(row, ShapeFor(o.name))
         seenNames[o.name] = true

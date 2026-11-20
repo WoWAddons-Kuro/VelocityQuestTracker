@@ -285,6 +285,7 @@ end
 local function RenderBlock(b, quest, now)
   local s = Settings()
   b.title:SetText(quest.title)
+  if not b.titleButton.hovered then T.SetColour(b.title, T.Tone.Label) end   -- re-apply band tone
   local y = -(6 + T.LabelSize + 4)
   local anyAnim = false
   local shownRows = 0
@@ -314,6 +315,7 @@ end
 -- yellow (Recent) for the hold time after completion so the eye lands on "done, go here".
 local function RenderHandInCard(b, quest, now)
   b.title:SetText(quest.title)
+  if not b.titleButton.hovered then T.SetColour(b.title, T.Tone.Label) end   -- re-apply band tone
   for idx = 1, #b.rows do b.rows[idx]:Hide() end
   local h = b.handin
   if not h then

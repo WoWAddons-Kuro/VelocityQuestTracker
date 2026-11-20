@@ -80,6 +80,10 @@ local function Render(list, groups, labelFn, arrivedFn, now)
     local row = AcquireLine(list, i)
     row.group = g                                    -- the hover card reads this
     T.ApplyWash(row.hover, 2)                        -- terrain band may have changed
+    -- Text/glyph tones are re-applied every render: T.Text bakes the colour at creation, and Retheme
+    -- only rebuilds T.Tone -- strings created before a band change kept the old grey (Westfall 2026-11-20).
+    T.SetColour(row.label, T.Tone.Label)
+    if row.check then row.check:SetVertexColor(T.Tone.Label[1], T.Tone.Label[2], T.Tone.Label[3]) end
     if NS.HoverCard.IsShownFor(row) then ShowHoverCard(row) end   -- live refresh under the cursor
     row.label:SetText(labelFn(g))
     local colours = {}
