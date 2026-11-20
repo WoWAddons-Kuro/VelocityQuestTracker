@@ -26,9 +26,11 @@ T.SparkWidth = 60      -- line view
 T.SparkMark  = 4
 T.ShapeSize  = 7
 
--- Tones: {r,g,b} 0..1
+-- Tones: {r,g,b} 0..1. T.Base holds the mockup palette and never changes; T.Tone is what the views
+-- read, re-derived from T.Base through LibZoneBrightness whenever the terrain band changes, so
+-- greys and washes stay readable over Westfall sand as well as Duskwood canopy (SPECS\LibZoneBrightness.md).
 local function Tone(hex) return { Util.HexToRGB(hex) } end
-T.Tone = {
+T.Base = {
   Todo   = Tone("#f2f2ea"),   -- bright: still to do
   Near   = Tone("#aab1aa"),   -- middle: nearby work not started
   Done   = Tone("#566058"),   -- dim: done units
@@ -38,8 +40,45 @@ T.Tone = {
   PopA   = Tone("#ffffff"),
   PopB   = Tone("#ffe89a"),
   Wash   = { 1, 1, 1 },       -- block wash colour; alpha below
+  WashAlpha = 0.06,
 }
-T.WashAlpha = 0.06
+T.Tone = {}
+T.WashAlpha = T.Base.WashAlpha
+T.Band = "normal"               -- current LibZoneBrightness band
+
+-- Which base tones take which adjustment role. Yellows and the pop whites are left alone: they are
+-- accents, and brightening white does nothing.
+local ROLE = { Todo = "text", Near = "text", Label = "dim", Done = "dim" }
+
+local function ZB() return LibStub and LibStub("LibZoneBrightness-1.0", true) end
+
+-- Re-derive T.Tone / T.WashAlpha for a band. Views read T.Tone at draw time, so one Panel.Render
+-- applies it; textures that were coloured once (washes) are re-coloured by T.ApplyWash on render.
+function T.Retheme(band)
+  local zb = ZB()
+  band = band or (zb and zb:GetBand()) or "normal"
+  T.Band = band
+  for name, base in pairs(T.Base) do
+    if name ~= "WashAlpha" then
+      local role = ROLE[name]
+      if zb and role then
+        local r, g, b = zb:Adjust(base[1], base[2], base[3], role, band)
+        T.Tone[name] = { r, g, b }
+      else
+        T.Tone[name] = { base[1], base[2], base[3] }
+      end
+    end
+  end
+  T.WashAlpha = zb and zb:AdjustAlpha(T.Base.WashAlpha, band) or T.Base.WashAlpha
+  -- on bright ground the 1 px shadow needs to be solid to hold the text off the sand
+  T.ShadowAlpha = (band == "bright") and 1.0 or 0.9
+  if NS.Panel and NS.Panel.Render then NS.Panel.Render() end
+end
+
+-- A wash texture re-reads the live alpha (called from the render paths that own washes).
+function T.ApplyWash(tex, mul) T.SetColour(tex, T.Tone.Wash, T.WashAlpha * (mul or 1)) end
+
+T.Retheme("normal")             -- fill T.Tone before any view is built; the lib re-themes on zone change
 
 function T.SetColour(obj, c, alpha)
   if obj.SetTextColor then obj:SetTextColor(c[1], c[2], c[3], alpha or c[4] or 1)
@@ -78,7 +117,7 @@ function T.Text(parent, size, tone, layer)
   local fs = parent:CreateFontString(nil, layer or "OVERLAY")
   fs:SetFont(T.Font, size or T.RowSize, "")
   fs:SetShadowOffset(1, -1)
-  fs:SetShadowColor(0, 0, 0, 0.9)
+  fs:SetShadowColor(0, 0, 0, T.ShadowAlpha or 0.9)
   fs:SetJustifyH("LEFT")
   fs:SetWordWrap(false)
   T.SetColour(fs, tone or T.Tone.Todo)

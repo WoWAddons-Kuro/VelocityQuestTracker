@@ -129,6 +129,7 @@ function Nearby.Render(snap)
         i = i + 1
         local row = AcquireLine(i)
         row.quest = q
+        T.ApplyWash(row.hover, 2)                    -- terrain band may have changed
         if NS.HoverCard.IsShownFor(row) then NS.HoverCard.ShowBlock(row, q) end   -- live refresh under the cursor
         SetShape(row, ShapeFor(o.name))
         seenNames[o.name] = true

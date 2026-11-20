@@ -69,6 +69,7 @@ end
 
 function Panel.RefreshTabs()
   if not strip then return end
+  T.ApplyWash(strip.bg)
   local cur = Panel.NearbyView()
   for _, b in ipairs({ strip.map, strip.range }) do
     local on = b.view == cur

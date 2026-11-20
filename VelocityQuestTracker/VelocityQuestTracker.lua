@@ -168,6 +168,12 @@ f:SetScript("OnEvent", function(_, event, arg1)
     end)
     Stage("Model", function() Model.Init(); Model.Build() end)
     Stage("Enabled", ApplyEnabled)
+    Stage("ZoneBrightness", function()
+      local zb = LibStub and LibStub("LibZoneBrightness-1.0", true)
+      if not zb then return end
+      zb:RegisterCallback(function(band) NS.Theme.Retheme(band) end)
+      NS.Theme.Retheme(zb:GetBand())
+    end)
     Stage("Ticker", function() C_Timer.NewTicker(5, Model.Tick) end)
   elseif event == "PLAYER_REGEN_ENABLED" then
     NS.StockTracker.OnLeaveCombat()

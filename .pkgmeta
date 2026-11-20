@@ -6,6 +6,9 @@ move-folders:
 required-dependencies:
   - questiedb: 1696795
 
+externals:
+  VelocityQuestTracker/Libs/LibZoneBrightness: https://github.com/WoWAddons-Kuro/LibZoneBrightness
+
 ignore:
   - ".git*"
   - "*.md"

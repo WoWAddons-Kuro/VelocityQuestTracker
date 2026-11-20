@@ -385,6 +385,8 @@ function Blocks.Render(snap)
     local q = present[qid]
     if q then
       b.quest = q                                    -- the hover card reads this
+      -- washes follow the terrain band (LibZoneBrightness): re-read the live alpha each render
+      T.ApplyWash(b.wash); T.ApplyWash(b.hover, 1)
       -- a block re-shown for a live quest is no longer departing (re-tracked after a dismiss)
       if not lingering[qid] and (q.category == "active" or q.category == "turnin_card") then b.departing = nil end
       if NS.HoverCard.IsShownFor(b) then NS.HoverCard.ShowBlock(b, q) end   -- live refresh under the cursor

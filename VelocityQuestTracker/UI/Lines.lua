@@ -79,6 +79,7 @@ local function Render(list, groups, labelFn, arrivedFn, now)
   for i, g in ipairs(groups) do
     local row = AcquireLine(list, i)
     row.group = g                                    -- the hover card reads this
+    T.ApplyWash(row.hover, 2)                        -- terrain band may have changed
     if NS.HoverCard.IsShownFor(row) then ShowHoverCard(row) end   -- live refresh under the cursor
     row.label:SetText(labelFn(g))
     local colours = {}
