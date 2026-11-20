@@ -218,7 +218,13 @@ local function OnTitleLeave(btn)
 end
 
 -- Hover anywhere on the block body: same card (block mode) for this quest.
-local function OnBlockEnter(b) if b.quest then NS.HoverCard.ShowBlock(b, b.quest) end end
+-- A block on its way out (dismissed, or lingering through its final fade) must NOT open a card: the
+-- re-layout under the cursor fires OnEnter, the card re-opens anchored to a block that is about to
+-- hide, and if the card opened under the cursor the watchdog never sees "away" (owner 2026-11-20:
+-- stuck card after a dismiss click).
+local function OnBlockEnter(b)
+  if b.quest and not b.departing then NS.HoverCard.ShowBlock(b, b.quest) end
+end
 local function OnBlockLeave() NS.HoverCard.ScheduleHide() end
 
 -- Click on a HAND-IN card's body (not its title, which is its own button): dismiss it to the turn-in
@@ -227,7 +233,10 @@ local function OnBlockMouseUp(b, button)
   if button ~= "LeftButton" then return end
   if not InteractionAllowed() then return end
   local q = b.quest
-  if q and q.category == "turnin_card" then NS.HoverCard.HideNow(); NS.Model.DismissQuest(q.questID) end
+  if q and q.category == "turnin_card" then
+    b.departing = true                     -- cleared when the block is next shown for a live quest
+    NS.HoverCard.HideNow(); NS.Model.DismissQuest(q.questID)
+  end
 end
 
 local function OnTitleClick(btn)
@@ -369,6 +378,8 @@ function Blocks.Render(snap)
     local q = present[qid]
     if q then
       b.quest = q                                    -- the hover card reads this
+      -- a block re-shown for a live quest is no longer departing (re-tracked after a dismiss)
+      if not lingering[qid] and (q.category == "active" or q.category == "turnin_card") then b.departing = nil end
       if NS.HoverCard.IsShownFor(b) then NS.HoverCard.ShowBlock(b, q) end   -- live refresh under the cursor
       local h, anim
       -- A complete quest in turnin_card is a card at once: the final segment's hold/fade belongs to
@@ -379,13 +390,15 @@ function Blocks.Render(snap)
       b.lastAnimating = anim
       if anim then anyAnim = true end
       if lingering[qid] and not anim then
-        lingering[qid] = nil; b:Hide()
+        lingering[qid] = nil; b.departing = nil; b:Hide()
       else
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -y); b:Show()
         y = y + h + T.PartGap
       end
     else
-      b:Hide(); b.lastAnimating = false; lingering[qid] = nil
+      -- hidden: if the hover card was anchored here, take it down too (its row just vanished)
+      if NS.HoverCard.IsShownFor(b) then NS.HoverCard.HideNow() end
+      b:Hide(); b.lastAnimating = false; lingering[qid] = nil; b.departing = nil
     end
   end
   -- compact slot order: drop quests no longer in the log
