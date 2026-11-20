@@ -24,7 +24,8 @@ local order = {}                    -- questID -> insertion rank
 local nextRank = 1
 local knownQuestIDs = {}            -- questID -> true  (quests seen in a previous snapshot)
 local wasComplete = {}              -- questID -> bool  (isComplete at the last build; detects becoming complete)
-local turninArrivedAt = {}          -- questID -> GetTime() when it first landed on the turn-in LINE (for the highlight)
+local turninArrivedAt = {}          -- questID -> GetTime() when it dropped from its card onto the turn-in LINE (flash)
+local lastCategory = {}             -- questID -> category at the last build (detects the card -> line transition)
 local primed = false                -- first snapshot taken (so a login full-log is not "all new")
 local dirtyState = {}
 local listeners = {}                -- fn(snapshot, changes)
@@ -86,7 +87,7 @@ local function DiffCounts(quests, now)
   -- forget quests that left the log
   for qid in pairs(knownQuestIDs) do
     if not seen[qid] then
-      knownQuestIDs[qid] = nil; lastCounts[qid] = nil; lastActivityAt[qid] = nil; recentUnits[qid] = nil; order[qid] = nil
+      knownQuestIDs[qid] = nil; lastCounts[qid] = nil; lastActivityAt[qid] = nil; recentUnits[qid] = nil; order[qid] = nil; wasComplete[qid] = nil; turninArrivedAt[qid] = nil; lastCategory[qid] = nil
     end
   end
   primed = true
@@ -131,8 +132,10 @@ local function Categorise(q, now, zone)
   -- finished quest -- or an errand quest accepted already complete -- always shows as a card first.
   if q.isComplete then
     if recentlyActive then return "turnin_card" end
-    -- first build where it is on the line: remember when, so the view can highlight its square
-    if not turninArrivedAt[q.questID] then turninArrivedAt[q.questID] = now end
+    -- Dropped from the card onto the line just now (previous build had it as a card): stamp the
+    -- arrival so the view can flash its square. Quests that were already on the line at login, or
+    -- that never had a card, are not stamped.
+    if lastCategory[q.questID] == "turnin_card" then turninArrivedAt[q.questID] = now end
     return "turnin"
   end
   if recentlyActive then return "active" end
@@ -155,6 +158,7 @@ function Model.Build()
       q.rank = Rank(q.questID)
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
       q.category = Categorise(q, now, zone)
+      lastCategory[q.questID] = q.category
       q.lastActivityAt = lastActivityAt[q.questID]
       q.recent = recentUnits[q.questID]
       q.arrivedAt = turninArrivedAt[q.questID]       -- when it landed on the turn-in line (nil until then)

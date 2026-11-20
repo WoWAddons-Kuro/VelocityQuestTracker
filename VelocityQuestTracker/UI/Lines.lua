@@ -40,7 +40,7 @@ local function AcquireLine(list, i)
   return row
 end
 
-local HIGHLIGHT_SECONDS = 8      -- a square that just joined a place line keeps a yellow outline this long
+local HIGHLIGHT_SECONDS = 2      -- a square that just joined a place line keeps a yellow outline this long
 
 -- Yellow 1 px outline around a square, created on demand and parked on the squares frame.
 local function AcquireOutline(row, i)
