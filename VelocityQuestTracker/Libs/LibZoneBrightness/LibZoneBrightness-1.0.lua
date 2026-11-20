@@ -9,7 +9,8 @@
 --   local ZB = LibStub("LibZoneBrightness-1.0")
 --   ZB:GetBand(uiMapID?)             -> LibZoneBrightness_Band   ("bright" | "normal" | "dark"; default = player's map)
 --   ZB:Adjust(r, g, b, role, band?)  -> r, g, b                  role: "text" | "dim"
---   ZB:AdjustAlpha(alpha, band?)     -> alpha                    role "wash" (background backing)
+--   ZB:AdjustAlpha(alpha, band?)     -> alpha                    role "wash" (background backing alpha)
+--   ZB:WashColour(band?)             -> r, g, b                  wash colour: black on bright ground, white elsewhere
 --   ZB:RegisterCallback(fn)          fn(band, uiMapID) when the band changes (zone change / entering world)
 --   ZB:SetOverride(uiMapID, band|nil) per-character override, saved in LibZoneBrightnessDB; also /zonebright
 --
@@ -54,10 +55,16 @@ lib.Table = lib.Table or {
 }
 
 -- Adjustment constants (spec "Adjustment table"). Luminance scale = multiply r,g,b, clamp 0..1.
+--   text / dim : foreground tones. On bright ground BOTH go UP -- the dim tones are the ones that vanish
+--                first on sand (owner 2026-11-20: "brighten up all the dim text"), so dim lifts harder
+--                than text, which is already near white.
+--   wash       : a translucent backing behind blocks. On bright ground the backing must be BLACK, not a
+--                brighter white: a white wash on sand lightens the sand. `washColour` is what the
+--                consumer should paint the wash with; the default (normal) is white at a faint alpha.
 lib.Factors = lib.Factors or {
-  bright = { text = 1.12, dim = 0.85, washAdd = 0.20, washMul = 1.0 },
-  normal = { text = 1.00, dim = 1.00, washAdd = 0.00, washMul = 1.0 },
-  dark   = { text = 1.00, dim = 1.10, washAdd = 0.00, washMul = 1.5 },
+  bright = { text = 1.06, dim = 1.45, washAdd = 0.30, washMul = 1.0, washColour = { 0, 0, 0 } },
+  normal = { text = 1.00, dim = 1.00, washAdd = 0.00, washMul = 1.0, washColour = { 1, 1, 1 } },
+  dark   = { text = 1.00, dim = 1.10, washAdd = 0.00, washMul = 1.5, washColour = { 1, 1, 1 } },
 }
 
 lib.callbacks = lib.callbacks or {}
@@ -106,6 +113,13 @@ function lib:AdjustAlpha(alpha, band)
   return Clamp01(alpha * f.washMul + f.washAdd)
 end
 
+-- The colour a background wash should be painted in for this band: black on bright ground (a backing),
+-- white elsewhere (a lift). Returns r, g, b.
+function lib:WashColour(band)
+  local f = lib.Factors[band or self:GetBand()] or lib.Factors.normal
+  local c = f.washColour or { 1, 1, 1 }
+  return c[1], c[2], c[3]
+end
 function lib:RegisterCallback(fn)
   for _, g in ipairs(self.callbacks) do if g == fn then return end end
   self.callbacks[#self.callbacks + 1] = fn

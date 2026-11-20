@@ -70,12 +70,14 @@ function T.Retheme(band)
     end
   end
   T.WashAlpha = zb and zb:AdjustAlpha(T.Base.WashAlpha, band) or T.Base.WashAlpha
+  -- wash COLOUR flips with the band: a white lift over dark ground, a black backing over sand
+  if zb and zb.WashColour then T.Tone.Wash = { zb:WashColour(band) } else T.Tone.Wash = { 1, 1, 1 } end
   -- on bright ground the 1 px shadow needs to be solid to hold the text off the sand
   T.ShadowAlpha = (band == "bright") and 1.0 or 0.9
   if NS.Panel and NS.Panel.Render then NS.Panel.Render() end
 end
 
--- A wash texture re-reads the live alpha (called from the render paths that own washes).
+-- A wash texture re-reads the live colour AND alpha (called from the render paths that own washes).
 function T.ApplyWash(tex, mul) T.SetColour(tex, T.Tone.Wash, T.WashAlpha * (mul or 1)) end
 
 T.Retheme("normal")             -- fill T.Tone before any view is built; the lib re-themes on zone change
