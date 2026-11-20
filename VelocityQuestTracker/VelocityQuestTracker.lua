@@ -18,6 +18,7 @@ local DEFAULT_SETTINGS = {
   HideCompletedSegments = false,
   HideCompletedRows = false,
   AutoUntrackInactive = true,
+  LinearSparkScale = false,
 }
 
 local function InitDB()
@@ -57,6 +58,9 @@ local function Slash(msg)
     Util.Print("tracker %s", NS.db.settings.Enabled and "enabled" or "disabled")
   elseif cmd == "options" or cmd == "config" or cmd == "settings" then NS.Options.Open()
   elseif cmd == "dump" then Model.Dump()
+  elseif cmd == "view" then
+    if rest == "map" or rest == "lines" then NS.Panel.SetNearbyView(rest) end
+    Util.Print("nearby view: %s  (range %d yd)", NS.Panel.NearbyView(), NS.Position.NearbyRangeYards())
   elseif cmd == "loc" then
     local id = tonumber(rest)
     local found

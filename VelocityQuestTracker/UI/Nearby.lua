@@ -17,9 +17,17 @@ local list
 local shapeByName = {}       -- objective name -> shape kind
 local shapesUsed = 0
 
--- Spark-line scale: the left end is the player, the right end is VQT_Nearby_SparkRangeYards and
--- beyond (SPEC: "units beyond band 3 sit at the right end"). Same yardage as three map bands.
-Nearby.SparkRangeYards = 600
+-- Spark-line scale: the left end is the player, the right end is Position.NearbyRangeYards() --
+-- max(600, farthest nearby spawn), fixed between objective-set changes. Distance is mapped with a
+-- square root by default (near half of the line = near quarter of the range) so the differences that
+-- matter -- the close ones -- get the pixels; the "LinearSparkScale" setting restores d / range.
+local function Settings() return NS.db and NS.db.settings or {} end
+
+function Nearby.ScaleDistance(d, range)
+  local f = math.min(1, d / range)
+  if Settings().LinearSparkScale then return f end
+  return math.sqrt(f)
+end
 
 -- fn(quest, objective, owed) -> array of 0..1 fractions (one per unit owed), or nil for "unknown".
 -- Default: QuestieDB spawns via Location + Position. Each unit owed is placed at the distance of the
@@ -32,10 +40,11 @@ function Nearby.DistanceProvider(quest, objective, owed)
   if not spawns or #spawns == 0 then return nil end
   local dists = Position.DistancesTo(spawns)
   if #dists == 0 then return nil end
+  local range = Position.NearbyRangeYards()
   local out = {}
   for u = 1, owed do
     local d = dists[math.min(u, #dists)]
-    out[u] = math.min(1, d / Nearby.SparkRangeYards)
+    out[u] = Nearby.ScaleDistance(d, range)
   end
   return out
 end
@@ -103,6 +112,8 @@ function Nearby.Render(snap)
   local y = 0
   local i = 0
   local seenNames = {}
+  -- range is per objective SET, so it is stable while walking (see Position.UpdateNearbyRange)
+  if NS.Position and NS.Position.UpdateNearbyRange then NS.Position.UpdateNearbyRange(snap) end
   for _, q in ipairs(snap.byCategory.nearby) do
     for _, o in ipairs(q.objectives) do
       local owed = o.need - o.have

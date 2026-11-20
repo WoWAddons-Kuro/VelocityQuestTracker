@@ -27,6 +27,7 @@ UI\Theme.lua
 UI\Blocks.lua
 UI\Lines.lua
 UI\Nearby.lua
+UI\MapView.lua
 UI\Panel.lua
 UI\StockTracker.lua
 UI\EditMode.lua

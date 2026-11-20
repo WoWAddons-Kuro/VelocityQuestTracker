@@ -29,6 +29,41 @@
 | Position smoothing (map view) | Pins move as little as possible. Cell = (sector of 8, band of 3). Sector change requires crossing the boundary by a hysteresis margin (asymmetric: enter at +7.5 deg past the boundary, leave at -2.5 deg); band change likewise (+-10 % of band width). Pin moves are eased over ~0.4 s, not snapped. Detailed in M3. |
 | Git | Assistant does `git init` + first commit. Owner handles webhooks row, publish, release. |
 
+## Nearby-work scale and marks (owner review, 2026-11-20)
+
+Zone sizes in yards (HereBeDragons `mapData`, Classic): Redridge 2170 x 1447, Westfall 3500 x 2333,
+Darkshore 6550 x 4367, Elwynn 3470 x 2313. The 600 yd spark-line cap is 10-20 % of a zone; from a
+town every marker pins to the right end and carries no information. **Decision (owner): the nearby
+range is `max(600 yd, farthest spawn of the quests being shown)`.** It follows the log, not the zone.
+
+| Topic | Decision |
+|---|---|
+| Range | `VQT_Nearby_RangeYards = max(VQT_Nearby_MinRangeYards (600), farthest spawn distance among the nearby quests' objectives in the current zone)`. Spark line right end = that; map view band width = range / 3. Every nearby spawn is therefore inside the field; only cross-zone spawns pin to the edge. |
+| Range stability | The farthest-spawn term is recomputed only when the **set of nearby objectives changes** (quest accepted / completed / promoted / zone change), not on every position sample. Between those events the range is fixed, so walking slides markers along a steady scale instead of rescaling the whole line. The 600 floor stops a single close objective from collapsing the scale. |
+| Spark-line scale | Square-root distance (`sqrt(d / range)`) so the near half of the line covers the near quarter of the zone; linear bunched everything far. Verify in playtest; a setting toggles linear. |
+| Marks per direction (replaces one-mark-per-unit) | Nearby marks show only for **inactive** quests (the active block already carries counts). One mark per **(source type, sector)** -- "there are spiders to the NE", not "five spiders". Sector = 8 compass directions; band ignored for marks, used only for the ring/radial placement. |
+| Mark size by weight | Mark size scales with `spawns in that sector / spawns in the zone` for that source type: `size = base * (0.75 + 0.5 * sqrt(share))`, clamped 5-9 px at 250 px field. The biggest mark is where most of that mob lives. Pure visual weight; no number is drawn. |
+| Apportion() | Retired. The spec's unit apportionment assumed one mark per unit owed; with one mark per sector the count enters only through size. |
+| Radial placement | The mark sits at the **spawn-weighted mean distance** of that sector's spawns (clamped to band 3), so a type that is both near and far reads as "medium". |
+| Hysteresis | Sector boundary +-7.5 deg (enter) / -2.5 deg (leave) per PLAN "Position smoothing"; radial position eased 0.4 s. |
+| Line view | Keeps one marker per unit owed (the spec's shape), scaled by the new range. |
+
+```lua
+-- pseudocode: marks for the map field (one source type)
+function MarksFor(sourceType, playerPos, zoneRange)
+  local bySector = {}                              -- sector -> { n = count, sumDist = yards }
+  for _, s in ipairs(spawnsInZone(sourceType)) do
+    local sector, dist = CellFor(playerPos, s)     -- 0..7, yards
+    bySector[sector] = bySector[sector] or { n = 0, sumDist = 0 }
+    bySector[sector].n = bySector[sector].n + 1; bySector[sector].sumDist = bySector[sector].sumDist + dist
+  end
+  local total = #spawnsInZone(sourceType)
+  for sector, b in pairs(bySector) do
+    emit { sector = sector, radius = min(b.sumDist / b.n, zoneRange), size = 0.75 + 0.5 * sqrt(b.n / total) }
+  end
+end
+```
+
 ## File layout (target)
 
 ```
@@ -109,10 +144,13 @@ Goal: the panel on screen, correct and stable, over real quest-log data on Forev
 - [ ] Combat deferral of category moves
 - [ ] Tone/wash settings
 
-### M3 - Map view, turn-in places
+### M3 - Zone-scaled range, map view
 
-- [ ] `Core\Position.lua`: cells, hysteresis, eased moves
-- [ ] Map view (bands, sectors, shapes, apportionment, edge pinning, key); hover tabs; per-character view choice
+- [ ] `Core\Position.lua`: `NearbyRangeYards(snapshot)` = max(600, farthest nearby spawn), recomputed on objective-set change only; replaces `Nearby.SparkRangeYards`
+- [ ] Line view: sqrt distance scale (setting to toggle linear)
+- [ ] `Core\Position.lua`: `CellFor` (sector, dist) with hysteresis; `MarksFor` per the pseudocode above
+- [ ] `UI\MapView.lua`: square field, band-2 ring, one mark per (source type, sector) sized by spawn share, eased radial moves, cross-zone edge pins, key below
+- [ ] Hover tabs (map / lines) on the panel, side chosen by the same screen-half test as the hover card; per-character view choice (`CharDB.nearbyView`)
 - [x] Finisher per quest from QuestieDB (done in M2)
 - [ ] Turn-in line: Forever POI first (QuestieDB finisher is in place)
 - [x] Other-zone attribution by remaining spawns (done in M2)

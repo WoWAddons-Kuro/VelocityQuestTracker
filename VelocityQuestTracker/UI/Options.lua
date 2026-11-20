@@ -117,6 +117,10 @@ function Options.Create()
     function(v) return string.format("Fade to dim: %.1f s", v) end), 44, -10)
   tm:Finish()
 
+  local nb = Section("Nearby work")
+  nb:Add(Check(nb, "LinearSparkScale", "Linear distance scale on the spark lines", "Unticked (default): square-root scale, so the near half of the line covers the near quarter of the range and close differences get the pixels. Ticked: plain distance / range."), 26, -10)
+  nb:Finish()
+
   local pn = Section("Panel")
   local reset = CreateFrame("Button", nil, pn, "UIPanelButtonTemplate")
   reset:SetSize(160, 22); reset:SetText("Reset position")
