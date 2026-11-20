@@ -38,6 +38,7 @@ Client.INTERFACE = {
   "OpenQuestLog",       -- (questID)      open the game's quest log to this quest; no-op in combat
   "SetWatched",         -- (questID, bool) set the stock "tracked" flag (the model keeps tracked == active)
   "QuestText",          -- (questID) -> description, objectivesText  (GetQuestLogQuestText by log index; nil if not in log)
+  "QuestItem",          -- (questID) -> itemID|nil, showWhenComplete  (GetQuestLogSpecialItemInfo by log index)
 }
 
 -- Shared helpers for the flavour files ------------------------------------------------
@@ -64,6 +65,15 @@ end
 function Client.DisplayNameFromParts(name, surname)
   if surname and surname ~= "" then return name .. " " .. surname end
   return name
+end
+
+-- Shared body of QuestItem: GetQuestLogSpecialItemInfo is the same on both clients once the log index
+-- is known. link is nil when the quest has no usable item.
+function Client.QuestItemByLogIndex(logIndex)
+  if not logIndex or logIndex == 0 or not GetQuestLogSpecialItemInfo then return nil, false end
+  local link, _, _, showWhenComplete = GetQuestLogSpecialItemInfo(logIndex)
+  local itemID = link and tonumber(link:match("item:(%d+)"))
+  return itemID, showWhenComplete and true or false
 end
 
 -- Complete means every objective is done. The log's own flag (C_QuestLog.IsComplete / the

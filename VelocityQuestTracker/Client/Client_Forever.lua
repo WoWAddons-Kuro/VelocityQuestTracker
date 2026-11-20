@@ -64,6 +64,11 @@ function impl.QuestText(questID)
   return description, objectives
 end
 
+function impl.QuestItem(questID)
+  local index = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
+  return Client.QuestItemByLogIndex(index)
+end
+
 -- Two objective APIs disagree on Forever (probe 2026-11-20, Therylune's Escape 945):
 --   C_QuestLog.GetQuestObjectives(id)[1]  type=event finished=false numFulfilled=0 numRequired=1
 --   GetQuestLogLeaderBoard(1, logIndex)   type=event finished=TRUE

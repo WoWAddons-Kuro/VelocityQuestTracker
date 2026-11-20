@@ -170,6 +170,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
     Stage("Ticker", function() C_Timer.NewTicker(5, Model.Tick) end)
   elseif event == "PLAYER_REGEN_ENABLED" then
     NS.StockTracker.OnLeaveCombat()
+    NS.ItemButtons.OnLeaveCombat()
   else
     Model.MarkDirty(event)
   end

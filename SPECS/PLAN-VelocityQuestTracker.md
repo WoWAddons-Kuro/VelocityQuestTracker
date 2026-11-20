@@ -42,6 +42,24 @@
 | Panel anchor | Always TOP* (normalised on every apply) so height changes grow down. |
 | Map field | PanelWidth / 2 (125 px) for now; layout to follow playtest. |
 
+## Quest item buttons (owner, 2026-11-20)
+
+API ground truth: `AddonManagement\_EXTERNAL_APIS\wow_quest_item_buttons.md`. Blizzard's `UseQuestLogSpecialItem` is
+protected; the only legal route is a `SecureActionButtonTemplate` with `type1="item"`, `item1="item:<ID>"`, and all
+attribute / parent / show changes queued out of combat. Reference implementation: Questie `TrackerItemButton.lua`.
+
+| Topic | Decision |
+|---|---|
+| Which quests | `Client.QuestItem(questID) -> itemID, showWhenComplete` (wraps `GetQuestLogSpecialItemInfo(logIndex)`). Blizzard's flag only; Questie's "any quest-class item in bags" extension deferred. |
+| Where | One `VQT_QuestItemButton` per quest with an item, on the **active block and the hand-in card** (complete quests use the item at the turn-in; honours `showWhenComplete`). Not on nearby rows in v1. |
+| Side | Beside the block, OUTSIDE the 250 px panel, on the side away from the nearer screen edge (same rule as the hover card), vertically centred on the title row. 24 px. |
+| Parent | `UIParent`, anchored to the block; never re-parented. Secure frames may not change parent / shown state in combat. |
+| Combat | `VQT_ItemButtonQueue`: assignments and hides made in combat are applied on `PLAYER_REGEN_ENABLED`; a button keeps its last item and anchor until then. |
+| State | icon, charge count when > 1 (`GetItemCount(id, nil, true)`), cooldown sweep (`GetItemCooldown`), range dot red/grey (`IsItemInRange(id, "target")`, polled 0.3 s while a target exists; nil when the API refuses), GameTooltip on hover. |
+| Shift gate | NOT applied to the item button: the click must stay a pure secure hardware event. (If wanted later: `shift-type1` attribute, not Lua.) |
+| Pool | Buttons are pooled by questID and retired with `RegisterForClicks()` (no args) + nil attributes, so a stale button cannot fire. |
+| Files | `Client\*` (+`QuestItem`), new `UI\ItemButtons.lua`, `Blocks.lua` anchors per block, bootstrap flushes the queue on `PLAYER_REGEN_ENABLED`. |
+
 ## Nearby-work scale and marks (owner review, 2026-11-20)
 
 Zone sizes in yards (HereBeDragons `mapData`, Classic): Redridge 2170 x 1447, Westfall 3500 x 2333,

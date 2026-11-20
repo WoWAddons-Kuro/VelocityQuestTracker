@@ -25,6 +25,7 @@ Core\Model.lua
 
 UI\Theme.lua
 UI\HoverCard.lua
+UI\ItemButtons.lua
 UI\Blocks.lua
 UI\Lines.lua
 UI\Nearby.lua

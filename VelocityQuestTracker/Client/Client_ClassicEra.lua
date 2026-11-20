@@ -51,6 +51,11 @@ function impl.QuestText(questID)
   return description, objectives
 end
 
+function impl.QuestItem(questID)
+  local index = GetQuestLogIndexByID and GetQuestLogIndexByID(questID)
+  return Client.QuestItemByLogIndex(index)
+end
+
 local function Objectives(logIndex, questID)
   local out = {}
   local rich = C_QuestLog and C_QuestLog.GetQuestObjectives and C_QuestLog.GetQuestObjectives(questID)

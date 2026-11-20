@@ -376,6 +376,7 @@ function Blocks.Render(snap)
   for _, qid in ipairs(blockOrder) do
     local b = blocksByQuest[qid]
     local q = present[qid]
+    local keepButtons = Blocks._keepButtons; if not keepButtons then keepButtons = {}; Blocks._keepButtons = keepButtons end
     if q then
       b.quest = q                                    -- the hover card reads this
       -- a block re-shown for a live quest is no longer departing (re-tracked after a dismiss)
@@ -394,6 +395,13 @@ function Blocks.Render(snap)
       else
         b:ClearAllPoints(); b:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -y); b:Show()
         y = y + h + T.PartGap
+        -- Usable quest item: a secure button beside the block (active or hand-in card). Complete
+        -- quests keep theirs only when the log says the item is still relevant (showWhenComplete).
+        local itemID, showWhenComplete = NS.Client.QuestItem(qid)
+        if itemID and (not q.isComplete or showWhenComplete) then
+          NS.ItemButtons.Want(qid, itemID, b)
+          keepButtons[qid] = true
+        end
       end
     else
       -- hidden: if the hover card was anchored here, take it down too (its row just vanished)
@@ -412,5 +420,8 @@ function Blocks.Render(snap)
   if y > 0 then y = y - T.PartGap end
   container:SetHeight(math.max(1, y))
   Blocks.animating = anyAnim
+  -- item buttons: drop any not wanted by a block drawn this pass
+  NS.ItemButtons.Reconcile(keepButtons)
+  wipe(keepButtons)
   return y
 end
