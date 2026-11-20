@@ -28,7 +28,7 @@ local function InitDB()
   db.version = db.version or DB_VERSION
   db.settings = Util.ApplyDefaults(db.settings or {}, DEFAULT_SETTINGS)
   VelocityQuestTrackerCharDB.version = VelocityQuestTrackerCharDB.version or DB_VERSION
-  VelocityQuestTrackerCharDB.nearbyView = VelocityQuestTrackerCharDB.nearbyView or "lines"
+  VelocityQuestTrackerCharDB.nearbyView = VelocityQuestTrackerCharDB.nearbyView or "range"
   NS.db = db
   NS.chardb = VelocityQuestTrackerCharDB
 end
@@ -59,7 +59,7 @@ local function Slash(msg)
   elseif cmd == "options" or cmd == "config" or cmd == "settings" then NS.Options.Open()
   elseif cmd == "dump" then Model.Dump()
   elseif cmd == "view" then
-    if rest == "map" or rest == "lines" then NS.Panel.SetNearbyView(rest) end
+    if rest == "map" or rest == "range" then NS.Panel.SetNearbyView(rest) end
     Util.Print("nearby view: %s  (range %d yd)", NS.Panel.NearbyView(), NS.Position.NearbyRangeYards())
   elseif cmd == "probe" then
     -- Raw client API for one quest, unfiltered: what the game says vs what our adapter derived.
