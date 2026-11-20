@@ -116,6 +116,14 @@ end
 
 local function OnUpdate()
   if Blocks.animating or Lines.highlighting or MapView.easing then Panel.Render() end
+  -- Hover strip. The panel does not take the mouse at rest (click-through), so hover is read here
+  -- via IsMouseOver; the panel rect is given a top margin so the gap to the strip does not flicker.
+  -- (This USED to be a HookScript("OnUpdate") installed BEFORE SetScript("OnUpdate", OnUpdate), which
+  -- replaced it -- the hook never ran and the tabs/strip never appeared. Owner 2026-11-20.)
+  if not tabs then return end
+  local over = HoverAllowed() and (frame:IsMouseOver(STRIP_H + STRIP_GAP, 0, 0, 0) or tabs:IsMouseOver())
+  if over and not tabs:IsShown() then Panel.RefreshTabs(); tabs:Show()
+  elseif not over and tabs:IsShown() then tabs:Hide() end
 end
 
 function Panel.Create()
@@ -132,14 +140,6 @@ function Panel.Create()
   parts.nearbyHolder = parts.lines
   parts.other = Lines.AttachOtherZones(frame)
   BuildTabs()
-  -- The strip shows while the mouse is over the panel, the strip, or the gap between them. The panel
-  -- does not take the mouse at rest (click-through), so hover is read on OnUpdate via IsMouseOver;
-  -- the panel's IsMouseOver is given a top margin so the gap does not flicker the strip.
-  frame:HookScript("OnUpdate", function(self)
-    local over = HoverAllowed() and (self:IsMouseOver(STRIP_H + STRIP_GAP, 0, 0, 0) or tabs:IsMouseOver())
-    if over and not tabs:IsShown() then PositionTabs(); Panel.RefreshTabs(); tabs:Show()
-    elseif not over and tabs:IsShown() then tabs:Hide() end
-  end)
   frame:SetScript("OnUpdate", OnUpdate)
   Model.OnChanged(function() Panel.Render() end)
   return frame

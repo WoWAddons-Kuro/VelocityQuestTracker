@@ -11,7 +11,7 @@ local T, Util = NS.Theme, NS.Util
 local MapView = {}
 NS.MapView = MapView
 
-local FIELD_PX = T.PanelWidth
+local FIELD_PX = T.PanelWidth / 2          -- owner 2026-11-20: full width was far too big; half for now, layout to follow
 local RING_BAND = 2
 local MARK_BASE_PX = 7
 local MARK_MIN_PX, MARK_MAX_PX = 5, 9

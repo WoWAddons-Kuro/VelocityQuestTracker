@@ -41,10 +41,34 @@ end
 function EditMode.IsActive() return editing end
 function EditMode.IsPositionLocked() return NS.db.settings.LockPosition ~= false end
 
+-- The panel's height changes with its content (map view, blocks arriving). It must grow DOWN from a
+-- fixed top edge, never shift up, so the saved anchor is always normalised to a TOP* point. A point
+-- captured as BOTTOM*/CENTER (Edit Mode drops with the mouse at whatever point it chose, drag
+-- StopMovingOrSizing likewise) is converted to the equivalent TOPLEFT/TOPRIGHT offset from the
+-- frame's current on-screen rectangle before it is stored.
+local function NormaliseToTop(f, p)
+  if not f or not p.point then return end
+  if p.point:sub(1, 3) == "TOP" then return end
+  local left, top, right = f:GetLeft(), f:GetTop(), f:GetRight()
+  if not (left and top and right) then return end
+  local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
+  -- keep the horizontal side the player chose (left half -> TOPLEFT, right half -> TOPRIGHT)
+  if (left + right) / 2 >= sw / 2 then
+    p.point, p.x, p.y = "TOPRIGHT", right - sw, top - sh
+  else
+    p.point, p.x, p.y = "TOPLEFT", left, top - sh
+  end
+end
+
 function EditMode.ApplyToPanel()
   local f = Panel.Frame()
   if not f then return end
   local p = Placement()
+  if p.point:sub(1, 3) ~= "TOP" then
+    -- place with the saved point once so GetLeft/GetTop are meaningful, then normalise and re-place
+    f:ClearAllPoints(); f:SetPoint(p.point, UIParent, p.point, p.x, p.y)
+    NormaliseToTop(f, p)
+  end
   f:ClearAllPoints()
   f:SetPoint(p.point, UIParent, p.point, p.x, p.y)
 end
@@ -55,6 +79,8 @@ function EditMode.OnPanelMoved()
   local point, _, _, x, y = f:GetPoint(1)
   local p = Placement()
   p.point, p.x, p.y = point or p.point, x or p.x, y or p.y
+  NormaliseToTop(f, p)
+  EditMode.ApplyToPanel()
 end
 
 function EditMode.OnPanelResized(w, h)
@@ -65,6 +91,7 @@ local function OnPlaceholderMoved(frame)
   local point, _, _, x, y = frame:GetPoint(1)
   local p = Placement()
   p.point, p.x, p.y = point or "TOPRIGHT", x or 0, y or 0
+  NormaliseToTop(frame, p)
   EditMode.ApplyToPanel()
 end
 
