@@ -124,10 +124,16 @@ local function ShowHoverCard(row)
   for i = #g.quests + 1, #card.rows do card.rows[i]:Hide() end
   card:SetSize(width, 2 * CARD_PAD + #g.quests * CARD_ROW_H)
   card:ClearAllPoints()
-  -- Abut the PANEL's left edge (not the row's, which is inset by PadX) so there is no gap to cross.
+  -- Abut the PANEL's edge (not the row's, which is inset by PadX) so there is no gap to cross.
+  -- Side: left of the panel when the panel sits in the right half of the screen, right of it
+  -- otherwise (SPEC "view tabs": flip when docked left), so the card never leaves the screen.
   local panel = NS.Panel and NS.Panel.Frame()
   local anchor = panel or row
-  card:SetPoint("TOPRIGHT", anchor, "TOPLEFT", 0, 0)
+  local centreX = anchor:GetCenter()
+  local screenMidX = (UIParent:GetWidth() or 0) / 2
+  local openLeft = centreX and centreX >= screenMidX
+  if openLeft then card:SetPoint("TOPRIGHT", anchor, "TOPLEFT", 0, 0)
+  else card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 0, 0) end
   card:SetPoint("TOP", row, "TOP", 0, 4)
   card:Show()
 end
