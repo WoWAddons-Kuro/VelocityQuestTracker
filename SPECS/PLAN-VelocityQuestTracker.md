@@ -97,8 +97,11 @@ Goal: the panel on screen, correct and stable, over real quest-log data on Forev
 
 ### M2 - QuestieDB first contact: real spark-line distances
 
-- [ ] Research: read `LibQuestieDB` contract 4 (`Types\*.t.lua`, `src\api.lua`), Questie's objective-to-ID matching, `C_Map.GetWorldPosFromMapPos` on Era; write findings to `AddonManagement\_EXTERNAL_APIS\questiedb_contract_4.md`
-- [ ] `Core\Location.lua`: spawns per objective, zone-percent -> yards cache; fallback yard scale if `GetWorldPosFromMapPos` is missing on Era
+- [x] Research: read `LibQuestieDB` contract 4 (`Types\*.t.lua`, `src\api.lua`), Questie's objective-to-ID matching, `C_Map.GetWorldPosFromMapPos` on Era; write findings to `AddonManagement\_EXTERNAL_APIS\questiedb_contract_4.md`
+- [x] `Core\Location.lua`: spawns per objective, zone-percent -> yards cache (`GetWorldPosFromMapPos` is present on Era, no fallback needed)
+- [x] QuestieDB is a required dependency: `.pkgmeta` `required-dependencies: - questiedb: 1696795`, TOC `## RequiredDeps: QuestieDB`; `publish.cs` installs missing required dependencies into each AddOns root
+- [x] Hand-in card (owner request 2026-11-20): a complete quest stays in part 2 as a card (check, finisher place, square) while recently active, then drops to the turn-in line with a 2 s yellow outline on its square. Becoming complete counts as activity, so errand quests accepted complete show the card too
+- [x] Other-zone / nearby attribution from the zones of the REMAINING work (QuestieDB spawns), fallback to the log header. Turn-in place = finisher sub-zone (pulled forward from M3)
 - [ ] `Core\Position.lua`: sampler between started/stopped-moving (fallback ticker); distance per spawn; spark-line markers placed by real distance, beyond band 3 at the right end
 - [ ] `VelocityQuestTracker.SetFocus(questIDs|nil)` public API; Split Tracker optional publisher
 - [ ] Combat deferral of category moves
@@ -108,9 +111,9 @@ Goal: the panel on screen, correct and stable, over real quest-log data on Forev
 
 - [ ] `Core\Position.lua`: cells, hysteresis, eased moves
 - [ ] Map view (bands, sectors, shapes, apportionment, edge pinning, key); hover tabs; per-character view choice
-- [ ] Finisher per quest from QuestieDB
-- [ ] Turn-in line keyed by finisher sub-zone; Forever POI first
-- [ ] Other-zone attribution by remaining spawns
+- [x] Finisher per quest from QuestieDB (done in M2)
+- [ ] Turn-in line: Forever POI first (QuestieDB finisher is in place)
+- [x] Other-zone attribution by remaining spawns (done in M2)
 - [ ] QuestieDB gap behaviour (quest missing -> M1 list row)
 
 ### M4 - Deferred

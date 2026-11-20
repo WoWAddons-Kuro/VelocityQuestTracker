@@ -285,7 +285,10 @@ function Blocks.Render(snap)
     local q = present[qid]
     if q then
       local h, anim
-      if q.isComplete and not lingering[qid] and not b.lastAnimating then h, anim = RenderHandInCard(b, q, now)
+      -- A complete quest in turnin_card is a card at once: the final segment's hold/fade belongs to
+      -- the row shape it just left, not to the card (waiting on it delayed the hand-in place ~5 s).
+      if q.category == "turnin_card" then h, anim = RenderHandInCard(b, q, now)
+      elseif q.isComplete and not lingering[qid] and not b.lastAnimating then h, anim = RenderHandInCard(b, q, now)
       else h, anim = RenderBlock(b, q, now); if b.handin then b.handin:Hide() end end
       b.lastAnimating = anim
       if anim then anyAnim = true end
