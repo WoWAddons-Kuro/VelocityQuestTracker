@@ -29,6 +29,19 @@
 | Position smoothing (map view) | Pins move as little as possible. Cell = (sector of 8, band of 3). Sector change requires crossing the boundary by a hysteresis margin (asymmetric: enter at +7.5 deg past the boundary, leave at -2.5 deg); band change likewise (+-10 % of band width). Pin moves are eased over ~0.4 s, not snapped. Detailed in M3. |
 | Git | Assistant does `git init` + first commit. Owner handles webhooks row, publish, release. |
 
+## Interaction decisions (owner, 2026-11-20, during M2/M3 playtest)
+
+| Topic | Decision |
+|---|---|
+| Hover card | One shared card (`UI\HoverCard.lua`) beside the panel, side away from the nearer screen edge, 0.35 s grace, per-frame watchdog (OnLeave is not reliable). Place lines show a list (square + title per quest); nearby rows and active blocks show a block-style card: title, the quest's objectives text (`GetQuestLogQuestText` via select/read/restore), objective rows with static bars. |
+| Card title clicks | Left = open quest log (Forever: loads `Blizzard_WorldMap` on demand, it is LOD and nil until L is pressed). Right = toggle tracked. |
+| Dismiss | Left-click on a hand-in card's BODY ends its active window -> turn-in line with the 2 s flash. The block is marked `departing` so the re-layout under the cursor cannot re-open the card. |
+| Hover strip | Hovering anywhere over the panel shows a one-row strip ABOVE it with the view toggle **Map | Range**. Replaces the SPEC's side tabs. Home for future view/option controls. |
+| View names | "map" and "range" (the spark-line list; "they are range lines, we don't need to say lines"). Saved "lines" reads as "range". |
+| Shift gates | `RequireShiftToInteract` gates clicks; `RequireShiftForHover` gates hover feedback (cards, title brightening, strip). Both default off. |
+| Panel anchor | Always TOP* (normalised on every apply) so height changes grow down. |
+| Map field | PanelWidth / 2 (125 px) for now; layout to follow playtest. |
+
 ## Nearby-work scale and marks (owner review, 2026-11-20)
 
 Zone sizes in yards (HereBeDragons `mapData`, Classic): Redridge 2170 x 1447, Westfall 3500 x 2333,
@@ -146,15 +159,17 @@ Goal: the panel on screen, correct and stable, over real quest-log data on Forev
 
 ### M3 - Zone-scaled range, map view
 
-- [ ] `Core\Position.lua`: `NearbyRangeYards(snapshot)` = max(600, farthest nearby spawn), recomputed on objective-set change only; replaces `Nearby.SparkRangeYards`
-- [ ] Line view: sqrt distance scale (setting to toggle linear)
-- [ ] `Core\Position.lua`: `CellFor` (sector, dist) with hysteresis; `MarksFor` per the pseudocode above
-- [ ] `UI\MapView.lua`: square field, band-2 ring, one mark per (source type, sector) sized by spawn share, eased radial moves, cross-zone edge pins, key below
-- [ ] Hover tabs (map / lines) on the panel, side chosen by the same screen-half test as the hover card; per-character view choice (`CharDB.nearbyView`)
+- [x] `Core\Position.lua`: `NearbyRangeYards(snapshot)` = max(600, farthest nearby spawn), recomputed on objective-set change only
+- [x] Range view: sqrt distance scale (setting `LinearSparkScale` toggles linear)
+- [x] `Core\Position.lua`: `BearingTo`, `SectorFor` (+7.5 deg enter hysteresis), `BandFor`, `MarksFor`
+- [x] `UI\MapView.lua`: square field (125 px), band-2 ring, one mark per (source type, sector) sized by spawn share, eased radial moves, key below. Cross-zone edge pins NOT drawn (decision pending: drop them)
+- [x] Hover strip above the panel with Map | Range; per-character view choice (`CharDB.nearbyView`). Supersedes the SPEC's side tabs
 - [x] Finisher per quest from QuestieDB (done in M2)
 - [ ] Turn-in line: Forever POI first (QuestieDB finisher is in place)
 - [x] Other-zone attribution by remaining spawns (done in M2)
 - [ ] QuestieDB gap behaviour (quest missing -> M1 list row)
+- [ ] Shape budget: 7+ source types -> second tone (owner lean (a)); cross-zone spawns dropped from the field
+- [ ] Playtest: mark sizes at 125 px, ring visibility, easing feel, sqrt vs linear
 
 ### M4 - Deferred
 
