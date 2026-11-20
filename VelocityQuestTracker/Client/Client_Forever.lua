@@ -68,10 +68,11 @@ local function Objectives(questID)
   local out = {}
   local objs = C_QuestLog.GetQuestObjectives(questID) or {}
   for j, o in ipairs(objs) do
-    local name, have, need = Client.ParseObjectiveText(o.text)
+    local name, have, need, textComplete = Client.ParseObjectiveText(o.text)
+    local finished = o.finished or textComplete
     if o.numRequired and o.numRequired > 0 then have, need = o.numFulfilled or 0, o.numRequired end
-    if not need or need < 1 then need = 1; have = o.finished and 1 or 0 end
-    out[j] = { index = j, text = o.text or "", name = name, type = o.type or "log", have = have or 0, need = need, done = o.finished and true or false }
+    if not need or need < 1 then need = 1; have = finished and 1 or 0 end
+    out[j] = { index = j, text = o.text or "", name = name, type = o.type or "log", have = have or 0, need = need, done = finished and true or false }
   end
   return out
 end

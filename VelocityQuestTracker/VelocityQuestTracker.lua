@@ -74,6 +74,7 @@ local function Slash(msg)
     if rest == "" or rest == "clear" then Model.SetFocus(nil); Util.Print("focus cleared")
     else local ids = {}; for n in rest:gmatch("%d+") do ids[#ids + 1] = tonumber(n) end; Model.SetFocus(ids); Util.Print("focus set to %d quest(s)", #ids) end
   elseif cmd == "status" then
+    Util.DumpHeader("/vqt status")
     local version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON_NAME, "Version")
     local ci = Util.ClientInfo()
     Util.Print("version %s | client %s %s (build %s, interface %s, project %s) | character %s | %s | %s | %s",

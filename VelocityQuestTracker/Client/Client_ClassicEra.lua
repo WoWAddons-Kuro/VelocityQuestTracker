@@ -57,7 +57,8 @@ local function Objectives(logIndex, questID)
   local n = GetNumQuestLeaderBoards(logIndex) or 0
   for j = 1, n do
     local text, otype, finished = GetQuestLogLeaderBoard(j, logIndex)
-    local name, have, need = Client.ParseObjectiveText(text)
+    local name, have, need, textComplete = Client.ParseObjectiveText(text)
+    finished = finished or textComplete
     local r = rich and rich[j]
     if r and r.numRequired and r.numRequired > 0 then have, need = r.numFulfilled or have or 0, r.numRequired end
     if not need or need < 1 then need = 1; have = finished and 1 or 0 end

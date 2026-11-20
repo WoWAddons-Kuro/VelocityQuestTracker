@@ -12,6 +12,13 @@ function Util.Print(fmt, ...)
   print(PREFIX .. tostring(fmt))
 end
 
+-- Banner above every diagnostic dump so the start of a paste is unmistakable:
+--   ====== /vqt dump ======
+function Util.DumpHeader(title)
+  print("|cffffcf4d====== " .. tostring(title) .. " ======|r")
+end
+function Util.DumpFooter(title) print("|cffffcf4d====== end " .. tostring(title) .. " ======|r") end
+
 local warned = {}
 function Util.WarnOnce(key, msg)
   if warned[key] then return end

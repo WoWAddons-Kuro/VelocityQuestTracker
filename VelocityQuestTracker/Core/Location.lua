@@ -253,6 +253,7 @@ end
 
 -- Diagnostic: /vqt loc <questID>
 function Location.Dump(quest)
+  Util.DumpHeader("/vqt loc " .. quest.questID)
   Util.Print("%s | quest %d %s | known=%s", Location.Status(), quest.questID, quest.title, tostring(available and QuestDB.Exists(quest.questID)))
   local srcs = Location.SourcesForQuest(quest)
   for _, o in ipairs(quest.objectives) do
@@ -264,4 +265,5 @@ function Location.Dump(quest)
   end
   local f = Location.FinisherFor(quest.questID)
   if f then print(string.format("  finisher: %s %d %s at area %s (%s)", f.source.kind, f.source.id, tostring(f.source.name), f.spawn and tostring(f.spawn.areaID) or "?", f.spawn and tostring(Location.PlaceNameForArea(f.spawn.areaID)) or "?")) else print("  finisher: unknown") end
+  Util.DumpFooter("/vqt loc " .. quest.questID)
 end

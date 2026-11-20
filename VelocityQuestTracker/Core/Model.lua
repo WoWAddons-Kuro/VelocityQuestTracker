@@ -286,6 +286,7 @@ function Model.TouchQuest(questID) Touch(questID, GetTime()); Model.MarkDirty("t
 
 function Model.Dump()
   local s = Model.Current()
+  Util.DumpHeader("/vqt dump")
   Util.Print("zone %s | %d quests | turnin %d, active %d, nearby %d, other %d%s", s.zone, #s.quests,
     #s.byCategory.turnin, #s.byCategory.active, #s.byCategory.nearby, #s.byCategory.other, focusSet and " | FOCUS" or "")
   for _, q in ipairs(s.quests) do
@@ -295,4 +296,5 @@ function Model.Dump()
       print(string.format("      %d. %s  %d/%d %s%s", o.index, o.name, o.have, o.need, o.type, o.done and " done" or ""))
     end
   end
+  Util.DumpFooter("/vqt dump")
 end

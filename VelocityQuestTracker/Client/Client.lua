@@ -43,12 +43,22 @@ Client.INTERFACE = {
 -- Shared helpers for the flavour files ------------------------------------------------
 
 -- "Young Nightsaber slain: 6/7" -> "Young Nightsaber slain", 6, 7
--- "Speak with Melithar"         -> "Speak with Melithar", nil, nil
+-- "Speak with Melithar"         -> "Speak with Melithar", nil, nil, false
+-- "Escort Therylune ... (Complete)" -> "Escort Therylune ...", nil, nil, true
+-- No-count objectives (escort, event, "speak with") carry their state in the TEXT on Forever: the
+-- log appends " (Complete)" and GetQuestObjectives().finished can lag or stay false. Seen 2026-11-20
+-- with Therylune's Escape: log said done, finished == false, we listed it as nearby work.
+local COMPLETE_SUFFIX = "%s*%(" .. (QUEST_COMPLETE or "Complete") .. "%)%s*$"
 function Client.ParseObjectiveText(text)
   text = text or ""
+  local textComplete = false
+  if text:find(COMPLETE_SUFFIX) then
+    textComplete = true
+    text = text:gsub(COMPLETE_SUFFIX, "")
+  end
   local name, have, need = text:match("^(.-):%s*(%d+)%s*/%s*(%d+)%s*$")
-  if name then return name, tonumber(have), tonumber(need) end
-  return text, nil, nil
+  if name then return name, tonumber(have), tonumber(need), textComplete end
+  return text, nil, nil, textComplete
 end
 
 function Client.DisplayNameFromParts(name, surname)
