@@ -63,6 +63,14 @@ local function AcquireLine(i)
   if row then return row end
   row = CreateFrame("Frame", nil, list)
   row:SetHeight(LINE_H)
+  -- Hover: the shared card in block mode for the quest this objective belongs to (row.quest).
+  row:EnableMouse(true)
+  row.hover = row:CreateTexture(nil, "BACKGROUND")
+  row.hover:SetPoint("TOPLEFT", -T.PadX, 2); row.hover:SetPoint("BOTTOMRIGHT", T.PadX, -2)
+  T.SetColour(row.hover, T.Tone.Wash, T.WashAlpha * 2)
+  row.hover:Hide()
+  row:SetScript("OnEnter", function(self) if self.quest then NS.HoverCard.ShowBlock(self, self.quest) end end)
+  row:SetScript("OnLeave", function() NS.HoverCard.ScheduleHide() end)
   row.shapeHolder = CreateFrame("Frame", nil, row); row.shapeHolder:SetSize(10, LINE_H); row.shapeHolder:SetPoint("LEFT", 0, 0)
   row.name = T.Text(row, T.LabelSize, T.Tone.Near)
   row.name:SetPoint("LEFT", row.shapeHolder, "RIGHT", T.ColGap, 0)
@@ -120,6 +128,8 @@ function Nearby.Render(snap)
       if owed > 0 then
         i = i + 1
         local row = AcquireLine(i)
+        row.quest = q
+        if NS.HoverCard.IsShownFor(row) then NS.HoverCard.ShowBlock(row, q) end   -- live refresh under the cursor
         SetShape(row, ShapeFor(o.name))
         seenNames[o.name] = true
         row.name:SetText(o.name)

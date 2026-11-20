@@ -12,133 +12,13 @@ local LINE_H = 14
 
 local function Settings() return NS.db and NS.db.settings or {} end
 
--- Hover feedback is gated by the "Hold Shift for hover feedback" setting (default off = always).
-local function HoverAllowed() return not Settings().RequireShiftForHover or IsShiftKeyDown() end
-
--- Hover card ---------------------------------------------------------------------------
--- VQT_PlaceHoverCard: one shared frame, abutting the panel's LEFT edge beside a hovered place line,
--- listing the quests folded into that line: a difficulty square and the quest title per row. Each
--- row is a button that opens the quest log. The card is interactive: it stays while the mouse is
--- on it, and only hides HOVER_GRACE_SECONDS after the mouse has left BOTH the line and the card,
--- so the player can travel from the line across the gap onto the card.
-local hoverCard
-local CARD_ROW_H = 14
-local CARD_PAD = 8
-local CARD_MIN_W = 120
-local HOVER_GRACE_SECONDS = 0.35
-local hideTimer                     -- C_Timer handle for the pending hide
-
-local function CancelHide() if hideTimer then hideTimer:Cancel(); hideTimer = nil end end
-
-local function SetLineHighlight(row, on)
-  if row and row.hover then row.hover:SetShown(on and true or false) end
-end
-
-local function HideHoverCardNow()
-  CancelHide()
-  if hoverCard then SetLineHighlight(hoverCard.row, false); hoverCard:Hide() end
-end
-
--- Leaving the line or the card: hide (card + line wash) after a grace period unless the mouse is on
--- either by then. The line wash shares the grace, so crossing the gap does not flicker it.
-local function ScheduleHide()
-  CancelHide()
-  hideTimer = C_Timer.NewTimer(HOVER_GRACE_SECONDS, function()
-    hideTimer = nil
-    if not hoverCard or not hoverCard:IsShown() then return end
-    local row = hoverCard.row
-    if hoverCard:IsMouseOver() or (row and row:IsShown() and row:IsMouseOver()) then return end
-    SetLineHighlight(row, false)
-    hoverCard:Hide()
-  end)
-end
-
-local function AcquireHoverCard()
-  if hoverCard then return hoverCard end
-  hoverCard = CreateFrame("Frame", "VelocityQuestTrackerPlaceCard", UIParent)
-  hoverCard:SetFrameStrata("TOOLTIP")
-  hoverCard:EnableMouse(true)
-  hoverCard:SetScript("OnEnter", CancelHide)
-  hoverCard:SetScript("OnLeave", ScheduleHide)
-  hoverCard:Hide()
-  hoverCard.bg = hoverCard:CreateTexture(nil, "BACKGROUND")
-  hoverCard.bg:SetAllPoints()
-  hoverCard.bg:SetColorTexture(0.11, 0.14, 0.11, 0.92)          -- the mockup's dark world tone, nearly opaque
-  hoverCard.rows = {}
-  return hoverCard
-end
-
-local function AcquireCardRow(i)
-  local card = AcquireHoverCard()
-  local r = card.rows[i]
-  if r then return r end
-  r = CreateFrame("Button", nil, card)
-  r:SetHeight(CARD_ROW_H)
-  r.square = r:CreateTexture(nil, "ARTWORK")
-  r.square:SetSize(T.Square, T.Square); r.square:SetPoint("LEFT", 0, 0)
-  r.title = T.Text(r, T.LabelSize, T.Tone.Todo)
-  r.title:SetPoint("LEFT", r.square, "RIGHT", 6, 0)
-  -- Child buttons swallow the card's OnEnter/OnLeave, so they forward hover state themselves.
-  r:SetScript("OnEnter", function(self)
-    CancelHide()
-    T.SetColour(self.title, T.Tone.Recent)
-  end)
-  r:SetScript("OnLeave", function(self)
-    T.SetColour(self.title, T.Tone.Todo)
-    ScheduleHide()
-  end)
-  r:SetScript("OnClick", function(self)
-    if Settings().RequireShiftToInteract and not IsShiftKeyDown() then return end
-    if not self.questID then return end
-    local ok = NS.Client.OpenQuestLog(self.questID)
-    if not ok and InCombatLockdown() then NS.Util.Print("cannot open the quest log in combat") end
-    HideHoverCardNow()
-  end)
-  card.rows[i] = r
-  return r
-end
-
--- Show the card for a place line: quests from the group the row currently carries.
+-- Hover: the shared card (UI\HoverCard.lua) in list mode -- one row per quest folded into this line.
 local function ShowHoverCard(row)
-  if not HoverAllowed() then return end
   local g = row.group
-  if not g or #g.quests == 0 then return end
-  CancelHide()
-  local card = AcquireHoverCard()
-  -- a different line took over: drop the old line's wash
-  if card.row and card.row ~= row then SetLineHighlight(card.row, false) end
-  card.row = row
-  SetLineHighlight(row, true)
-  local width = CARD_MIN_W
-  for i, q in ipairs(g.quests) do
-    local r = AcquireCardRow(i)
-    r.questID = q.questID
-    T.SetColour(r.square, T.DifficultyColour(q.level))
-    r.title:SetText(q.title)
-    width = math.max(width, T.Square + 6 + r.title:GetStringWidth() + 2 * CARD_PAD)
-    r:ClearAllPoints()
-    r:SetPoint("TOPLEFT", card, "TOPLEFT", CARD_PAD, -(CARD_PAD + (i - 1) * CARD_ROW_H))
-    r:SetPoint("RIGHT", card, "RIGHT", -CARD_PAD, 0)
-    r:Show()
-  end
-  for i = #g.quests + 1, #card.rows do card.rows[i]:Hide() end
-  card:SetSize(width, 2 * CARD_PAD + #g.quests * CARD_ROW_H)
-  card:ClearAllPoints()
-  -- Abut the PANEL's edge (not the row's, which is inset by PadX) so there is no gap to cross.
-  -- Side: left of the panel when the panel sits in the right half of the screen, right of it
-  -- otherwise (SPEC "view tabs": flip when docked left), so the card never leaves the screen.
-  local panel = NS.Panel and NS.Panel.Frame()
-  local anchor = panel or row
-  local centreX = anchor:GetCenter()
-  local screenMidX = (UIParent:GetWidth() or 0) / 2
-  local openLeft = centreX and centreX >= screenMidX
-  if openLeft then card:SetPoint("TOPRIGHT", anchor, "TOPLEFT", 0, 0)
-  else card:SetPoint("TOPLEFT", anchor, "TOPRIGHT", 0, 0) end
-  card:SetPoint("TOP", row, "TOP", 0, 4)
-  card:Show()
+  if g then NS.HoverCard.ShowList(row, g.quests) end
 end
 
-local function HideHoverCard() ScheduleHide() end
+local function HideHoverCard() NS.HoverCard.ScheduleHide() end
 
 local function NewList(parent, withCheck)
   local list = CreateFrame("Frame", nil, parent)
@@ -199,7 +79,7 @@ local function Render(list, groups, labelFn, arrivedFn, now)
   for i, g in ipairs(groups) do
     local row = AcquireLine(list, i)
     row.group = g                                    -- the hover card reads this
-    if hoverCard and hoverCard:IsShown() and row:IsMouseOver() then ShowHoverCard(row) end   -- live refresh under the cursor
+    if NS.HoverCard.IsShownFor(row) then ShowHoverCard(row) end   -- live refresh under the cursor
     row.label:SetText(labelFn(g))
     local colours = {}
     for _, q in ipairs(g.quests) do colours[#colours + 1] = T.DifficultyColour(q.level) end
