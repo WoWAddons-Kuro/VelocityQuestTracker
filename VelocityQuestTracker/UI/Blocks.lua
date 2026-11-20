@@ -397,11 +397,15 @@ function Blocks.Render(snap)
         y = y + h + T.PartGap
         -- Usable quest item: a secure button beside the block (active or hand-in card). Complete
         -- quests keep theirs only when the log says the item is still relevant (showWhenComplete).
-        local itemID, showWhenComplete = NS.Client.QuestItem(qid)
-        if itemID and (not q.isComplete or showWhenComplete) then
-          NS.ItemButtons.Want(qid, itemID, b)
-          keepButtons[qid] = true
-        end
+        -- Guarded: an item-button failure must never take the panel layout down with it.
+        local ok, err = pcall(function()
+          local itemID, showWhenComplete = NS.Client.QuestItem(qid)
+          if itemID and (not q.isComplete or showWhenComplete) then
+            NS.ItemButtons.Want(qid, itemID, b)
+            keepButtons[qid] = true
+          end
+        end)
+        if not ok then Util.WarnOnce("itembutton:" .. qid, "item button for quest " .. qid .. ": " .. tostring(err)) end
       end
     else
       -- hidden: if the hover card was anchored here, take it down too (its row just vanished)
@@ -421,7 +425,8 @@ function Blocks.Render(snap)
   container:SetHeight(math.max(1, y))
   Blocks.animating = anyAnim
   -- item buttons: drop any not wanted by a block drawn this pass
-  NS.ItemButtons.Reconcile(keepButtons)
+  local okR, errR = pcall(NS.ItemButtons.Reconcile, keepButtons)
+  if not okR then Util.WarnOnce("itembutton:reconcile", tostring(errR)) end
   wipe(keepButtons)
   return y
 end

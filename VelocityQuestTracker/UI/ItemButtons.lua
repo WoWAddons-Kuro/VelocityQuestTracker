@@ -25,10 +25,18 @@ local byQuest = {}               -- questID -> button (live)
 local queue = {}                 -- VQT_ItemButtonQueue: questID -> { itemID, anchor } | false (= hide)
 local queued = false
 
-local GetItemCount = C_Item and C_Item.GetItemCount or GetItemCount
-local GetItemCooldown = C_Item and C_Item.GetItemCooldown or GetItemCooldown
-local GetItemIcon = C_Item and C_Item.GetItemIconByID or GetItemIcon
-local IsItemInRange = C_Item and C_Item.IsItemInRange or IsItemInRange
+-- API aliases, resolved in Questie's verified order (QuestieCompat.lua). `C_Item and C_Item.X or X` is
+-- WRONG when C_Item exists but lacks X: it yields nil, and the nil call inside Blocks.Render aborted the
+-- whole panel layout so only the turn-in line (rendered first) survived -- owner 2026-11-20 "only
+-- shows completed quests". Each alias falls through every known home and ends in a safe stub.
+local function Pick(...)
+  for i = 1, select("#", ...) do local f = select(i, ...); if type(f) == "function" then return f end end
+  return function() return nil end
+end
+local GetItemCount   = Pick(C_Item and C_Item.GetItemCount, _G.GetItemCount)
+local GetItemCooldown = Pick(C_Container and C_Container.GetItemCooldown, C_Item and C_Item.GetItemCooldown, _G.GetItemCooldown)
+local GetItemIcon    = Pick(C_Item and C_Item.GetItemIconByID, _G.GetItemIcon)
+local IsItemInRange  = Pick(C_Item and C_Item.IsItemInRange, _G.IsItemInRange)
 
 -- Button lifecycle ---------------------------------------------------------------------------
 local function UpdateCooldown(btn)
