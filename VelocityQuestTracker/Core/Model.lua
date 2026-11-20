@@ -284,6 +284,14 @@ end
 -- Dev helper: force a quest active (e.g. /vqt touch <id>)
 function Model.TouchQuest(questID) Touch(questID, GetTime()); Model.MarkDirty("touch") end
 
+-- Dismiss: the player clicked a hand-in card's body. End its active window now so the next build
+-- drops it from the card onto the turn-in line (with the arrival flash). Clearing lastActivityAt is
+-- enough: Categorise sees recentlyActive == false and lastCategory == "turnin_card".
+function Model.DismissQuest(questID)
+  lastActivityAt[questID] = nil
+  Model.MarkDirty("dismiss")
+end
+
 function Model.Dump()
   local s = Model.Current()
   Util.DumpHeader("/vqt dump")

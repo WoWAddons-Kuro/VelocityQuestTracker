@@ -221,6 +221,15 @@ end
 local function OnBlockEnter(b) if b.quest then NS.HoverCard.ShowBlock(b, b.quest) end end
 local function OnBlockLeave() NS.HoverCard.ScheduleHide() end
 
+-- Click on a HAND-IN card's body (not its title, which is its own button): dismiss it to the turn-in
+-- line. Blocks for incomplete quests ignore body clicks.
+local function OnBlockMouseUp(b, button)
+  if button ~= "LeftButton" then return end
+  if not InteractionAllowed() then return end
+  local q = b.quest
+  if q and q.category == "turnin_card" then NS.HoverCard.HideNow(); NS.Model.DismissQuest(q.questID) end
+end
+
 local function OnTitleClick(btn)
   if not InteractionAllowed() then return end
   local ok = NS.Client.OpenQuestLog(btn.questID)
@@ -241,6 +250,7 @@ local function AcquireBlock(questID)
   b.hover = b:CreateTexture(nil, "BACKGROUND"); b.hover:SetAllPoints(); b.hover:SetDrawLayer("BACKGROUND", 1)
   T.SetColour(b.hover, T.Tone.Wash, T.WashAlpha); b.hover:Hide()
   b:SetScript("OnEnter", OnBlockEnter); b:SetScript("OnLeave", OnBlockLeave)
+  b:SetScript("OnMouseUp", OnBlockMouseUp)
   -- Title is a button: hover brightens it, click opens the quest log to this quest.
   b.titleButton = CreateFrame("Button", nil, b)
   b.titleButton:SetPoint("TOP", 0, -6); b.titleButton:SetSize(T.PanelWidth - 2 * T.PadX, T.LabelSize + 4)
