@@ -64,15 +64,30 @@ function impl.QuestText(questID)
   return description, objectives
 end
 
-local function Objectives(questID)
+-- Two objective APIs disagree on Forever (probe 2026-11-20, Therylune's Escape 945):
+--   C_QuestLog.GetQuestObjectives(id)[1]  type=event finished=false numFulfilled=0 numRequired=1
+--   GetQuestLogLeaderBoard(1, logIndex)   type=event finished=TRUE
+-- The legacy leaderboard carries the right `finished` for event / escort / speak-with objectives; the
+-- modern struct carries the right counts for kill/collect ones. Read both and merge. `counted` is
+-- by TYPE (monster/item/object/reputation have real counts; event/log/spell do not), not numRequired,
+-- which is 1 for an event objective.
+local NO_COUNT_TYPES = { event = true, log = true, spell = true, progressbar = true }
+local function Objectives(questID, logIndex)
   local out = {}
   local objs = C_QuestLog.GetQuestObjectives(questID) or {}
   for j, o in ipairs(objs) do
     local name, have, need, textComplete = Client.ParseObjectiveText(o.text)
-    local finished = o.finished or textComplete
-    if o.numRequired and o.numRequired > 0 then have, need = o.numFulfilled or 0, o.numRequired end
+    local lbFinished = false
+    if logIndex and GetQuestLogLeaderBoard then
+      local _, _, fin = GetQuestLogLeaderBoard(j, logIndex)
+      lbFinished = fin and true or false
+    end
+    local finished = o.finished or lbFinished or textComplete
+    local counted = not NO_COUNT_TYPES[o.type or "log"] and (o.numRequired or 0) > 0
+    if counted then have, need = o.numFulfilled or 0, o.numRequired end
     if not need or need < 1 then need = 1; have = finished and 1 or 0 end
-    out[j] = { index = j, text = o.text or "", name = name, type = o.type or "log", have = have or 0, need = need, done = finished and true or false, counted = (o.numRequired or 0) > 0 }
+    if not counted and finished then have = need end
+    out[j] = { index = j, text = o.text or "", name = name, type = o.type or "log", have = have or 0, need = need, done = finished and true or false, counted = counted }
   end
   return out
 end
@@ -88,7 +103,7 @@ function impl.Quests()
         header = info.title
       elseif info.questID and info.questID > 0 and not info.isHidden then
         local qid = info.questID
-        local objectives = Objectives(qid)
+        local objectives = Objectives(qid, i)
         quests[#quests + 1] = {
           questID = qid, title = info.title or ("quest " .. qid), level = info.level or 0,
           isComplete = Client.DeriveComplete(C_QuestLog.IsComplete(qid), objectives),
