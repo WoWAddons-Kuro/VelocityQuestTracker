@@ -113,7 +113,7 @@ local function Acquire()
   card:Hide()
   card.bg = card:CreateTexture(nil, "BACKGROUND")
   card.bg:SetAllPoints()
-  card.bg:SetColorTexture(0.11, 0.14, 0.11, 0.92)
+  card.bg:SetColorTexture(0.13, 0.16, 0.14, 0.94)
   card.listRows = {}
   card.blockRows = {}
   return card
@@ -147,8 +147,10 @@ local function AcquireBlockRow(i)
   return r
 end
 
--- Static segment bar (no animation): done = Label tone (the Done tone vanishes against the card's dark
--- background), remaining = Near tone; 10 per row wrapping.
+-- Static segment bar (no animation). Same tones as a live block -- done = Done, remaining = Todo -- so the
+-- card reads like the block it mirrors. (Label/Near were tried: two mid greys of near-equal luminance
+-- merged into one pale bar at 4/5, owner 2026-11-20. Done is visible because the card background is
+-- lifted to the field tone below.) 10 per row wrapping, bar sized to the row width like Blocks.
 local function FillSegments(r, have, need)
   local perRow = T.SegPerRow
   local rows = math.max(1, math.ceil(need / perRow))
@@ -161,7 +163,7 @@ local function FillSegments(r, have, need)
     local cc = (u - 1) % perRow
     s:ClearAllPoints(); s:SetSize(segW, T.SegHeight)
     s:SetPoint("TOPLEFT", r.bar, "TOPLEFT", cc * (segW + T.SegGap), -rr * (T.SegHeight + T.SegGap))
-    T.SetColour(s, u <= have and T.Tone.Label or T.Tone.Near)
+    T.SetColour(s, u <= have and T.Tone.Done or T.Tone.Todo)
     s:Show()
   end
   for u = need + 1, #r.segs do r.segs[u]:Hide() end
@@ -247,7 +249,8 @@ function HoverCard.ShowBlock(row, quest)
     local r = AcquireBlockRow(i)
     r.name:SetText(o.name)
     r.count:SetText(string.format("%d/%d", o.have, o.need))
-    local tone = o.have >= o.need and T.Tone.Label or T.Tone.Near
+    -- text tones mirror a live block: bright while owed, label once done
+    local tone = o.have >= o.need and T.Tone.Label or T.Tone.Todo
     T.SetColour(r.name, tone); T.SetColour(r.count, tone)
     local h = FillSegments(r, o.have, o.need)
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", c, "TOPLEFT", PAD, -y); r:SetPoint("RIGHT", c, "RIGHT", -PAD, 0)
