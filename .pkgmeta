@@ -4,7 +4,7 @@ move-folders:
   VelocityQuestTracker/VelocityQuestTracker: VelocityQuestTracker
 
 required-dependencies:
-  - questiedb
+  - questiedb: 1696795
 
 ignore:
   - ".git*"
