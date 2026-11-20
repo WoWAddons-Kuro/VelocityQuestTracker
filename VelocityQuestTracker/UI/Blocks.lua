@@ -364,6 +364,8 @@ function Blocks.Render(snap)
   local present = {}
   local y = 0
   local anyAnim = false
+  -- questIDs whose block wants an item button this pass (reconciled against live buttons at the end)
+  local keepButtons = {}
   -- ensure blocks exist for every active quest (appends new ones to slot order)
   for _, q in ipairs(snap.byCategory.active) do AcquireBlock(q.questID); present[q.questID] = q end
   -- complete-but-recent quests stay as a hand-in card in the same slot
@@ -376,7 +378,6 @@ function Blocks.Render(snap)
   for _, qid in ipairs(blockOrder) do
     local b = blocksByQuest[qid]
     local q = present[qid]
-    local keepButtons = Blocks._keepButtons; if not keepButtons then keepButtons = {}; Blocks._keepButtons = keepButtons end
     if q then
       b.quest = q                                    -- the hover card reads this
       -- a block re-shown for a live quest is no longer departing (re-tracked after a dismiss)
@@ -427,6 +428,5 @@ function Blocks.Render(snap)
   -- item buttons: drop any not wanted by a block drawn this pass
   local okR, errR = pcall(NS.ItemButtons.Reconcile, keepButtons)
   if not okR then Util.WarnOnce("itembutton:reconcile", tostring(errR)) end
-  wipe(keepButtons)
   return y
 end
