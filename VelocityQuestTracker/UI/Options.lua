@@ -99,7 +99,8 @@ function Options.Create()
   -- The two headline checkboxes, directly under the intro.
   Place(Check(content, "Enabled", "Enable Velocity Quest Tracker", "Shows the panel and hides the game's own quest tracker. Untick to put the stock tracker back."), -14)
   Place(Check(content, "LockPosition", "Lock position (edit with Edit Mode)", "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by its own frame."), -4)
-  Place(Check(content, "RequireShiftToInteract", "Require Shift key to interact with panel", "Ticked: quest titles only highlight and open the quest log while Shift is held, so the panel never catches stray clicks."), -4)
+  Place(Check(content, "RequireShiftToInteract", "Require Shift key to interact with panel", "Ticked: clicks on quest titles only open the quest log while Shift is held, so the panel never catches stray clicks."), -4)
+  Place(Check(content, "RequireShiftForHover", "Hold Shift for hover feedback", "Ticked: the place-line summary card and title highlight only appear while Shift is held."), -4)
 
   local blk = Section("Actionable block")
   blk:Add(Slider(blk, "VelocityQuestTrackerOptActive", "ActiveWindowSeconds", 300, 60, 900, 30,

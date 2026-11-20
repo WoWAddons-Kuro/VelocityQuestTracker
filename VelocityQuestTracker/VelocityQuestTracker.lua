@@ -11,6 +11,7 @@ local DEFAULT_SETTINGS = {
   Enabled = true,
   LockPosition = true,
   RequireShiftToInteract = false,
+  RequireShiftForHover = false,
   ActiveWindowSeconds = 300,
   HoldSeconds = 4,
   FadeSeconds = 1,

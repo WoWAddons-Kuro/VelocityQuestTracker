@@ -10,6 +10,73 @@ NS.Lines = Lines
 
 local LINE_H = 14
 
+local function Settings() return NS.db and NS.db.settings or {} end
+
+-- Hover feedback is gated by the "Hold Shift for hover feedback" setting (default off = always).
+local function HoverAllowed() return not Settings().RequireShiftForHover or IsShiftKeyDown() end
+
+-- Hover card ---------------------------------------------------------------------------
+-- VQT_PlaceHoverCard: one shared frame, shown to the LEFT of a hovered place line, listing the
+-- quests folded into that line: a difficulty square and the quest title per row. It does not take
+-- the mouse (EnableMouse false) so it never steals the hover from the line.
+local hoverCard
+local CARD_ROW_H = 14
+local CARD_PAD = 8
+local CARD_MIN_W = 120
+
+local function AcquireHoverCard()
+  if hoverCard then return hoverCard end
+  hoverCard = CreateFrame("Frame", "VelocityQuestTrackerPlaceCard", UIParent)
+  hoverCard:SetFrameStrata("TOOLTIP")
+  hoverCard:EnableMouse(false)
+  hoverCard:Hide()
+  hoverCard.bg = hoverCard:CreateTexture(nil, "BACKGROUND")
+  hoverCard.bg:SetAllPoints()
+  hoverCard.bg:SetColorTexture(0.11, 0.14, 0.11, 0.92)          -- the mockup's dark world tone, nearly opaque
+  hoverCard.rows = {}
+  return hoverCard
+end
+
+local function AcquireCardRow(i)
+  local card = AcquireHoverCard()
+  local r = card.rows[i]
+  if r then return r end
+  r = CreateFrame("Frame", nil, card)
+  r:SetHeight(CARD_ROW_H)
+  r.square = r:CreateTexture(nil, "ARTWORK")
+  r.square:SetSize(T.Square, T.Square); r.square:SetPoint("LEFT", 0, 0)
+  r.title = T.Text(r, T.LabelSize, T.Tone.Todo)
+  r.title:SetPoint("LEFT", r.square, "RIGHT", 6, 0)
+  card.rows[i] = r
+  return r
+end
+
+-- Show the card for a place line: quests from the group the row currently carries.
+local function ShowHoverCard(row)
+  if not HoverAllowed() then return end
+  local g = row.group
+  if not g or #g.quests == 0 then return end
+  local card = AcquireHoverCard()
+  local width = CARD_MIN_W
+  for i, q in ipairs(g.quests) do
+    local r = AcquireCardRow(i)
+    T.SetColour(r.square, T.DifficultyColour(q.level))
+    r.title:SetText(q.title)
+    width = math.max(width, T.Square + 6 + r.title:GetStringWidth() + 2 * CARD_PAD)
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", card, "TOPLEFT", CARD_PAD, -(CARD_PAD + (i - 1) * CARD_ROW_H))
+    r:SetPoint("RIGHT", card, "RIGHT", -CARD_PAD, 0)
+    r:Show()
+  end
+  for i = #g.quests + 1, #card.rows do card.rows[i]:Hide() end
+  card:SetSize(width, 2 * CARD_PAD + #g.quests * CARD_ROW_H)
+  card:ClearAllPoints()
+  card:SetPoint("TOPRIGHT", row, "TOPLEFT", -T.PadX, 4)
+  card:Show()
+end
+
+local function HideHoverCard() if hoverCard then hoverCard:Hide() end end
+
 local function NewList(parent, withCheck)
   local list = CreateFrame("Frame", nil, parent)
   list:SetWidth(T.PanelWidth); list:SetHeight(1)
@@ -23,6 +90,9 @@ local function AcquireLine(list, i)
   if row then return row end
   row = CreateFrame("Frame", nil, list)
   row:SetHeight(LINE_H); row:SetPoint("LEFT", T.PadX, 0); row:SetPoint("RIGHT", -T.PadX, 0)
+  row:EnableMouse(true)
+  row:SetScript("OnEnter", ShowHoverCard)
+  row:SetScript("OnLeave", HideHoverCard)
   local x = 0
   if list.withCheck then
     row.check = row:CreateTexture(nil, "ARTWORK")
@@ -60,6 +130,8 @@ local function Render(list, groups, labelFn, arrivedFn, now)
   local anyHighlight = false
   for i, g in ipairs(groups) do
     local row = AcquireLine(list, i)
+    row.group = g                                    -- the hover card reads this
+    if hoverCard and hoverCard:IsShown() and row:IsMouseOver() then ShowHoverCard(row) end   -- live refresh under the cursor
     row.label:SetText(labelFn(g))
     local colours = {}
     for _, q in ipairs(g.quests) do colours[#colours + 1] = T.DifficultyColour(q.level) end

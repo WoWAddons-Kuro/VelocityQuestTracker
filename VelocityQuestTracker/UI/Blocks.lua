@@ -202,7 +202,8 @@ local function InteractionAllowed()
 end
 
 local function OnTitleEnter(btn)
-  if not InteractionAllowed() then return end
+  -- hover feedback has its own gate ("Hold Shift for hover feedback"); clicks use InteractionAllowed
+  if Settings().RequireShiftForHover and not IsShiftKeyDown() then return end
   T.SetColour(btn.text, T.Tone.Todo)
   btn.hovered = true
 end
