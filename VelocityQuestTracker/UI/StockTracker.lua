@@ -11,8 +11,23 @@ NS.StockTracker = StockTracker
 local sink
 local originalParent
 local swallowed = false
+local hooked = false
 
 local function Stock() return Client.StockTrackerFrame() end
+
+-- Edit Mode (and some layout code) re-parents the stock tracker back to UIParent when a layout is
+-- applied. Hook SetParent so a foreign re-parent while we are enabled is undone next frame, and
+-- re-swallow when Edit Mode exits.
+local function HookOnce(f)
+  if hooked then return end
+  hooked = true
+  hooksecurefunc(f, "SetParent", function(self, parent)
+    if swallowed and parent ~= sink and not InCombatLockdown() then
+      C_Timer.After(0, function() if swallowed and self:GetParent() ~= sink then self:SetParent(sink) end end)
+    end
+  end)
+  f:HookScript("OnShow", function(self) if swallowed and not InCombatLockdown() then self:Hide() end end)
+end
 
 function StockTracker.Swallow()
   local f = Stock()
@@ -23,7 +38,9 @@ function StockTracker.Swallow()
     sink:Hide()
   end
   originalParent = originalParent or f:GetParent() or UIParent
+  HookOnce(f)
   f:SetParent(sink)
+  f:Hide()
   swallowed = true
 end
 
@@ -32,6 +49,7 @@ function StockTracker.Release()
   if not f or not swallowed then return end
   if InCombatLockdown() then NS.deferToOutOfCombat = NS.deferToOutOfCombat or {}; NS.deferToOutOfCombat.release = true; return end
   f:SetParent(originalParent or UIParent)
+  f:Show()
   swallowed = false
 end
 
