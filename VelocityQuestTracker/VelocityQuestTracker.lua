@@ -61,6 +61,44 @@ local function Slash(msg)
   elseif cmd == "view" then
     if rest == "map" or rest == "lines" then NS.Panel.SetNearbyView(rest) end
     Util.Print("nearby view: %s  (range %d yd)", NS.Panel.NearbyView(), NS.Position.NearbyRangeYards())
+  elseif cmd == "probe" then
+    -- Raw client API for one quest, unfiltered: what the game says vs what our adapter derived.
+    local id = tonumber(rest)
+    if not id then Util.Print("usage: /vqt probe <questID>") return end
+    Util.DumpHeader("/vqt probe " .. id)
+    local function P(fmt, ...) print(string.format(fmt, ...)) end
+    if C_QuestLog and C_QuestLog.GetLogIndexForQuestID then
+      local idx = C_QuestLog.GetLogIndexForQuestID(id)
+      P("  C_QuestLog.GetLogIndexForQuestID = %s", tostring(idx))
+      P("  C_QuestLog.IsComplete = %s   IsFailed = %s   ReadyForTurnIn = %s", tostring(C_QuestLog.IsComplete and C_QuestLog.IsComplete(id)),
+        tostring(C_QuestLog.IsFailed and C_QuestLog.IsFailed(id)), tostring(C_QuestLog.ReadyForTurnIn and C_QuestLog.ReadyForTurnIn(id)))
+      P("  IsQuestComplete(global) = %s", tostring(IsQuestComplete and IsQuestComplete(id)))
+      if idx and C_QuestLog.GetInfo then
+        local info = C_QuestLog.GetInfo(idx)
+        if info then P("  GetInfo: isComplete=%s isAutoComplete=%s startEvent=%s", tostring(info.isComplete), tostring(info.isAutoComplete), tostring(info.startEvent)) end
+      end
+      local objs = C_QuestLog.GetQuestObjectives and C_QuestLog.GetQuestObjectives(id)
+      P("  GetQuestObjectives: %d entries", objs and #objs or -1)
+      for j, o in ipairs(objs or {}) do
+        P("    [%d] text=%q type=%s finished=%s numFulfilled=%s numRequired=%s", j, tostring(o.text), tostring(o.type), tostring(o.finished), tostring(o.numFulfilled), tostring(o.numRequired))
+      end
+      if idx then
+        P("  GetNumQuestLeaderBoards(idx) = %s", tostring(GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(idx)))
+        for j = 1, (GetNumQuestLeaderBoards and GetNumQuestLeaderBoards(idx)) or 0 do
+          local t, ty, fin = GetQuestLogLeaderBoard(j, idx)
+          P("    LB[%d] text=%q type=%s finished=%s", j, tostring(t), tostring(ty), tostring(fin))
+        end
+      end
+    else
+      P("  (Era) GetQuestLogIndexByID = %s", tostring(GetQuestLogIndexByID and GetQuestLogIndexByID(id)))
+    end
+    for _, q in ipairs(Model.Current().quests) do
+      if q.questID == id then
+        P("  VQT: category=%s isComplete=%s", q.category, tostring(q.isComplete))
+        for _, o in ipairs(q.objectives) do P("    obj %d: %s %d/%d counted=%s done=%s", o.index, o.name, o.have, o.need, tostring(o.counted), tostring(o.done)) end
+      end
+    end
+    Util.DumpFooter("/vqt probe " .. id)
   elseif cmd == "loc" then
     local id = tonumber(rest)
     local found
