@@ -58,13 +58,14 @@ function impl.Quests()
         header = info.title
       elseif info.questID and info.questID > 0 and not info.isHidden then
         local qid = info.questID
+        local objectives = Objectives(qid)
         quests[#quests + 1] = {
           questID = qid, title = info.title or ("quest " .. qid), level = info.level or 0,
-          isComplete = C_QuestLog.IsComplete(qid) and true or false,
+          isComplete = Client.DeriveComplete(C_QuestLog.IsComplete(qid), objectives),
           isFailed = C_QuestLog.IsFailed and C_QuestLog.IsFailed(qid) and true or false,
           isWatched = C_QuestLog.GetQuestWatchType and C_QuestLog.GetQuestWatchType(qid) ~= nil or false,
           zoneName = header,
-          objectives = Objectives(qid),
+          objectives = objectives,
         }
       end
     end

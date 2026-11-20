@@ -54,3 +54,15 @@ function Client.DisplayNameFromParts(name, surname)
   if surname and surname ~= "" then return name .. " " .. surname end
   return name
 end
+
+-- Complete means every objective is done. The log's own flag (C_QuestLog.IsComplete / the
+-- GetQuestLogTitle isComplete field) is the authority ONLY when there are no counted objectives
+-- (errand / "speak with" quests, which can arrive complete). Seen on Forever: IsComplete(399) true
+-- while "0/1 A Simple Compass" was outstanding, which put the quest on the turn-in line.
+function Client.DeriveComplete(logSaysComplete, objectives)
+  if #objectives == 0 then return logSaysComplete and true or false end
+  for _, o in ipairs(objectives) do
+    if not o.done and o.have < o.need then return false end
+  end
+  return true
+end

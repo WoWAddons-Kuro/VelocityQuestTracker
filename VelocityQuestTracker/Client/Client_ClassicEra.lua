@@ -62,13 +62,14 @@ function impl.Quests()
     if isHeader then
       header = title
     elseif questID and questID > 0 then
+      local objectives = Objectives(i, questID)
       quests[#quests + 1] = {
         questID = questID, title = title or ("quest " .. questID), level = level or 0,
-        isComplete = isComplete == 1 or isComplete == true,
+        isComplete = Client.DeriveComplete(isComplete == 1 or isComplete == true, objectives),
         isFailed = isComplete == -1,
         isWatched = IsQuestWatched and IsQuestWatched(i) and true or false,
         zoneName = header,
-        objectives = Objectives(i, questID),
+        objectives = objectives,
       }
     end
   end
