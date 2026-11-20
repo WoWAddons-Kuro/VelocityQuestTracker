@@ -81,6 +81,26 @@ local function MakeTitleButton(parent, size, tone)
 end
 
 -- Frame ---------------------------------------------------------------------------------------
+-- Watchdog. OnLeave is not guaranteed: a row re-rendered or hidden under the cursor, a panel
+-- re-layout, or a child button taking the mouse all drop the event, and the card then stays up until
+-- the next hover (owner 2026-11-20: "sometimes stuck open"). So while the card is shown, poll each
+-- frame: if the mouse is on neither the card nor its row for VQT_HoverCard_AwaySeconds, hide.
+local AWAY_SECONDS = HOVER_GRACE_SECONDS
+local awaySince = nil
+local function Watchdog(self)
+  local row = self.row
+  local over = self:IsMouseOver() or (row and row:IsShown() and row:IsMouseOver())
+  if over then awaySince = nil; return end
+  local now = GetTime()
+  awaySince = awaySince or now
+  if now - awaySince >= AWAY_SECONDS then
+    awaySince = nil
+    CancelHide()
+    SetRowWash(row, false)
+    self:Hide()
+  end
+end
+
 local function Acquire()
   if card then return card end
   card = CreateFrame("Frame", "VelocityQuestTrackerHoverCard", UIParent)
@@ -88,6 +108,8 @@ local function Acquire()
   card:EnableMouse(true)
   card:SetScript("OnEnter", CancelHide)
   card:SetScript("OnLeave", HoverCard.ScheduleHide)
+  card:SetScript("OnUpdate", Watchdog)
+  card:SetScript("OnShow", function() awaySince = nil end)
   card:Hide()
   card.bg = card:CreateTexture(nil, "BACKGROUND")
   card.bg:SetAllPoints()
