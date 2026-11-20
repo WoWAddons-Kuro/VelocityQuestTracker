@@ -132,7 +132,7 @@ function Nearby.Render(snap)
         if NS.HoverCard.IsShownFor(row) then NS.HoverCard.ShowBlock(row, q) end   -- live refresh under the cursor
         SetShape(row, ShapeFor(o.name))
         seenNames[o.name] = true
-        row.name:SetText(o.name)
+        row.name:SetText((function() local c = T.CountText(o.have, o.need); local n = T.CountlessName(o.name); return c ~= "" and (c .. " " .. n) or n end)())
         local fr = Nearby.DistanceProvider and Nearby.DistanceProvider(q, o, owed)
         if not fr then fr = {}; for u = 1, owed do fr[u] = 0.5 end end
         SetMarks(row, fr)

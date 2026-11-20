@@ -103,6 +103,26 @@ function Options.Create()
   Place(Check(content, "RequireShiftForHover", "Hold Shift for hover feedback", "Ticked: the place-line summary card and title highlight only appear while Shift is held."), -4)
 
   local blk = Section("Actionable block")
+  -- Radio pair: objective counts shown as what is LEFT (default) or as done/total.
+  local countRadios = {}
+  local function CountRadio(mode, label, tip)
+    local r = CreateFrame("CheckButton", nil, blk, "UIRadioButtonTemplate"); r:SetSize(16, 16)
+    r.text = r:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall"); r.text:SetPoint("LEFT", r, "RIGHT", 4, 0); r.text:SetText(label)
+    r.tooltipText = tip
+    r.mode = mode
+    r:SetScript("OnClick", function()
+      db().ObjectiveCountMode = mode
+      for _, o in ipairs(countRadios) do o:SetChecked(o.mode == mode) end
+      NS.OnSettingChanged("ObjectiveCountMode")
+    end)
+    r.Update = function(self) self:SetChecked((db().ObjectiveCountMode or "remaining") == mode) end
+    widgets[#widgets + 1] = r; countRadios[#countRadios + 1] = r
+    return r
+  end
+  local countLabel = blk:CreateFontString(nil, "ARTWORK", "GameFontHighlight"); countLabel:SetText("Show objectives as")
+  blk:Add(countLabel, 14, -10, 4)
+  blk:Add(CountRadio("remaining", "remaining counts", "\"3\" -- how many units are still owed."), 16, -4, 4)
+  blk:Add(CountRadio("completed", "completed counts", "\"1/4\" -- done over total."), 16, -4, 4)
   blk:Add(Slider(blk, "VelocityQuestTrackerOptActive", "ActiveWindowSeconds", 300, 60, 900, 30,
     function(v) return string.format("A quest stays in the block for %d s after you act on it", v) end), 44, -10)
   blk:Add(Check(blk, "HideCompletedSegments", "Hide completed segments", "Done units are not drawn; the bar shows only what is left."), 26, -10)

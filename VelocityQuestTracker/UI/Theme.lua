@@ -54,6 +54,26 @@ function T.DifficultyColour(level)
   return T.Tone.Near
 end
 
+-- Objective count text, per the "Show objectives as" setting (VQT_ObjectiveCountMode):
+--   "remaining" (default) -> units still owed, e.g. "3"   (0 when done)
+--   "completed"            -> done over total,   e.g. "1/4"
+-- No-count objectives (need == 1) have nothing useful to count: remaining mode shows "" when done,
+-- "1" when owed; completed mode shows the usual "0/1" / "1/1".
+function T.CountText(have, need)
+  local mode = NS.db and NS.db.settings and NS.db.settings.ObjectiveCountMode or "remaining"
+  if mode == "completed" then return string.format("%d/%d", have, need) end
+  local left = math.max(0, need - have)
+  if need == 1 then return left > 0 and "1" or "" end
+  return tostring(left)
+end
+
+-- Objective name with any leading Blizzard count prefix ("0/4 Grizzled Scalp") removed, so the
+-- count can be re-attached in the chosen mode. Names that carry the count as a suffix are already
+-- clean (ParseObjectiveText strips ": n/m").
+function T.CountlessName(name)
+  return (name or ""):gsub("^%d+%s*/%s*%d+%s+", "")
+end
+
 function T.Text(parent, size, tone, layer)
   local fs = parent:CreateFontString(nil, layer or "OVERLAY")
   fs:SetFont(T.Font, size or T.RowSize, "")

@@ -127,8 +127,8 @@ end
 local function RenderRow(block, idx, obj, quest, now)
   local row = AcquireRow(block, idx)
   local s = Settings()
-  row.name:SetText(obj.name)
-  row.count:SetText(string.format("%d/%d", obj.have, obj.need))
+  row.name:SetText(T.CountlessName(obj.name))
+  row.count:SetText(T.CountText(obj.have, obj.need))
   -- segment states from the model: units <= have are done unless a recent timestamp says they are mid-animation
   local recent = quest.recent and quest.recent[obj.index]
   for u = 1, obj.need do

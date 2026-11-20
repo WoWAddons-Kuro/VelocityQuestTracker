@@ -247,8 +247,8 @@ function HoverCard.ShowBlock(row, quest)
   end
   for i, o in ipairs(quest.objectives) do
     local r = AcquireBlockRow(i)
-    r.name:SetText(o.name)
-    r.count:SetText(string.format("%d/%d", o.have, o.need))
+    r.name:SetText(T.CountlessName(o.name))
+    r.count:SetText(T.CountText(o.have, o.need))
     -- text tones mirror a live block: bright while owed, label once done
     local tone = o.have >= o.need and T.Tone.Label or T.Tone.Todo
     T.SetColour(r.name, tone); T.SetColour(r.count, tone)

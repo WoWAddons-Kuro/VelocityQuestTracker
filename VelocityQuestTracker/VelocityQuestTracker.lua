@@ -19,6 +19,7 @@ local DEFAULT_SETTINGS = {
   HideCompletedRows = false,
   AutoUntrackInactive = true,
   LinearSparkScale = false,
+  ObjectiveCountMode = "remaining",     -- "remaining" | "completed"  (Options: "Show objectives as")
 }
 
 local function InitDB()
