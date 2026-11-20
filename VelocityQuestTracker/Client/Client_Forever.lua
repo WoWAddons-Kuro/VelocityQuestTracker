@@ -35,11 +35,17 @@ function impl.SetWatched(questID, watched)
   return false
 end
 
--- GetQuestLogQuestText([logIndex]) is present on Forever (1.60.1+); index from GetLogIndexForQuestID.
+-- GetQuestLogQuestText reads the SELECTED quest on the modern client even when passed an index
+-- (the index form returned empty on 1.60.1 with nothing selected), so select, read, restore.
 function impl.QuestText(questID)
   local index = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
   if not index or not GetQuestLogQuestText then return nil end
-  return GetQuestLogQuestText(index)
+  local prev = C_QuestLog.GetSelectedQuest and C_QuestLog.GetSelectedQuest()
+  if C_QuestLog.SetSelectedQuest then C_QuestLog.SetSelectedQuest(questID) end
+  local description, objectives = GetQuestLogQuestText(index)
+  if (not objectives or objectives == "") and GetQuestLogQuestText then description, objectives = GetQuestLogQuestText() end
+  if prev and prev ~= questID and C_QuestLog.SetSelectedQuest then C_QuestLog.SetSelectedQuest(prev) end
+  return description, objectives
 end
 
 local function Objectives(questID)

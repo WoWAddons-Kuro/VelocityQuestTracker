@@ -38,11 +38,17 @@ function impl.SetWatched(questID, watched)
   return false
 end
 
--- GetQuestLogQuestText([logIndex]) takes an index on Era too (QuestLogFrame.lua :367); no select needed.
+-- Era's QuestLogFrame selects then calls GetQuestLogQuestText() with no argument; mirror that and
+-- restore the previous selection so the open quest log does not jump.
 function impl.QuestText(questID)
   local index = GetQuestLogIndexByID and GetQuestLogIndexByID(questID)
   if not index or index == 0 or not GetQuestLogQuestText then return nil end
-  return GetQuestLogQuestText(index)
+  local prev = GetQuestLogSelection and GetQuestLogSelection()
+  SelectQuestLogEntry(index)
+  local description, objectives = GetQuestLogQuestText(index)
+  if not objectives or objectives == "" then description, objectives = GetQuestLogQuestText() end
+  if prev and prev ~= index and prev > 0 then SelectQuestLogEntry(prev) end
+  return description, objectives
 end
 
 local function Objectives(logIndex, questID)

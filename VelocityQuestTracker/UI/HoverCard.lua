@@ -125,7 +125,8 @@ local function AcquireBlockRow(i)
   return r
 end
 
--- Static segment bar (no animation): done = Done tone, remaining = Near tone; 10 per row wrapping.
+-- Static segment bar (no animation): done = Label tone (the Done tone vanishes against the card's dark
+-- background), remaining = Near tone; 10 per row wrapping.
 local function FillSegments(r, have, need)
   local perRow = T.SegPerRow
   local rows = math.max(1, math.ceil(need / perRow))
@@ -138,7 +139,7 @@ local function FillSegments(r, have, need)
     local cc = (u - 1) % perRow
     s:ClearAllPoints(); s:SetSize(segW, T.SegHeight)
     s:SetPoint("TOPLEFT", r.bar, "TOPLEFT", cc * (segW + T.SegGap), -rr * (T.SegHeight + T.SegGap))
-    T.SetColour(s, u <= have and T.Tone.Done or T.Tone.Near)
+    T.SetColour(s, u <= have and T.Tone.Label or T.Tone.Near)
     s:Show()
   end
   for u = need + 1, #r.segs do r.segs[u]:Hide() end
