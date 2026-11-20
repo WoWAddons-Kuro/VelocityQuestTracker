@@ -21,6 +21,7 @@ local unavailableReason = "not checked"
 local areaIdToUiMapId = {}
 local uiMapIdToAreaId = {}
 local subZoneToParentZone = {}
+local dungeonByAreaId = {}      -- dungeon AreaId OR one of its alternative ids -> canonical dungeon AreaId
 
 -- caches (cleared on Location.Reset)
 local spawnCache = {}           -- "npc:123" | "object:456" -> { VQT_SpawnYards... }
@@ -48,6 +49,14 @@ function Location.Init()
     areaIdToUiMapId = Merge(DecodeTable(p.areaIdToUiMapId), DecodeTable(p.areaIdToUiMapIdOverride))
     uiMapIdToAreaId = Merge(DecodeTable(p.uiMapIdToAreaId), DecodeTable(p.uiMapIdToAreaIdOverride))
     subZoneToParentZone = Merge(DecodeTable(p.subZoneToParentZone), DecodeTable(p.subZoneToParentZoneOverride))
+    -- dungeons is a plain table: { [dungeonAreaId] = { name, alternativeAreaIds?, parentZone, entrances } }
+    wipe(dungeonByAreaId)
+    if type(p.dungeons) == "table" then
+      for areaID, entry in pairs(p.dungeons) do
+        dungeonByAreaId[areaID] = areaID
+        for _, alt in ipairs(type(entry) == "table" and entry[2] or {}) do dungeonByAreaId[alt] = areaID end
+      end
+    end
   else
     Util.WarnOnce("questiedb-zones", "QuestieDB zone tables not found; distances disabled")
   end
@@ -217,11 +226,31 @@ function Location.SpawnsForObjective(quest, objective)
   return out
 end
 
+-- Dungeon quests ------------------------------------------------------------------------
+-- QuestieDB files a quest under an AreaId (QuestDB.zoneOrSort > 0). When that AreaId is a dungeon
+-- (ZoneDB.private.dungeons key, or one of its alternative ids), the quest is a DUNGEON quest and its
+-- work is the dungeon -- whatever the spawn tables say. Owner policy "1a" (2026-11-20): drop sources
+-- like Defias Miners / Foreman Thistlenettle also spawn in the outdoor Moonbrook mine (Westfall 40),
+-- so spawn-based attribution made "Oh Brother..." an in-zone Westfall quest. Returns the canonical
+-- dungeon AreaId, or nil for an overworld / unknown quest.
+function Location.DungeonZoneForQuest(questID)
+  if not available or not QuestDB.Exists(questID) then return nil end
+  local areaID = QuestDB.zoneOrSort and QuestDB.zoneOrSort(questID)
+  if type(areaID) ~= "number" or areaID <= 0 then return nil end
+  if dungeonByAreaId[areaID] then return dungeonByAreaId[areaID] end
+  -- a sub-zone of a dungeon (Ironclad Cove 1582 -> The Deadmines 1581) counts too
+  local parent = subZoneToParentZone[areaID]
+  if parent and dungeonByAreaId[parent] then return dungeonByAreaId[parent] end
+  return nil
+end
+
 -- Zone attribution for a quest's remaining work: set of parent AreaIds with spawns of unfinished
--- objectives. Empty when unknown.
+-- objectives. Empty when unknown. A dungeon quest is attributed to its dungeon only (see above).
 function Location.WorkZonesForQuest(quest)
   local zones = {}
   if not available then return zones end
+  local dungeon = Location.DungeonZoneForQuest(quest.questID)
+  if dungeon then zones[dungeon] = true; return zones end
   for _, o in ipairs(quest.objectives) do
     if not o.done then
       local spawns = Location.SpawnsForObjective(quest, o)

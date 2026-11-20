@@ -137,10 +137,17 @@ local function RenderRow(block, idx, obj, quest, now)
   row.count:SetText(T.CountText(obj.have, obj.need))
   -- segment states from the model: units <= have are done unless a recent timestamp says they are mid-animation
   local recent = quest.recent and quest.recent[obj.index]
+  -- A unit whose landing is older than the whole pop+hold+fade is finished: it must settle to "done"
+  -- directly. Without this, a /reload (segments recreated as "todo", recentUnits restored from the DB)
+  -- re-ran every remembered unit through pop -> hold -> fade from its OLD t0, leaving a mix of
+  -- yellow-grey (RecentSeg) and plain Done cells until the next state change (owner 2026-11-20:
+  -- "different grey bricks after a restart").
+  local animLen = POP_SECONDS + (s.HoldSeconds or 4) + (s.FadeSeconds or 1)
   for u = 1, obj.need do
     local seg = row.segs[u]
     local wasState = seg and seg.state or "todo"
     local at = recent and recent[u]
+    if at and (now - at) >= animLen then at = nil end
     local newState
     if u > obj.have then newState = "todo"
     elseif at and wasState == "todo" then newState = "pop"
@@ -368,7 +375,11 @@ end
 local lingering = {}   -- questID -> quest (complete, animating out)
 
 function Blocks.Render(snap)
-  local now = snap.now or GetTime()
+  -- ANIMATION CLOCK IS GetTime(), NEVER snap.now. snap.now is stamped once per model build, and Panel
+  -- re-renders the SAME snapshot every frame while animating: with snap.now the pop sat at t=0 for
+  -- every frame -> full swell (1.15 x 3.4) until the next rebuild. The "tall brick" root cause
+  -- (fourth recurrence, 2026-11-20): layout was right, time was frozen.
+  local now = GetTime()
   local present = {}
   local y = 0
   local anyAnim = false

@@ -78,7 +78,7 @@ local function AcquireLine(i)
   row.spark:SetSize(T.SparkWidth, 8); row.spark:SetPoint("RIGHT", 0, 0)
   row.spark.base = row.spark:CreateTexture(nil, "BACKGROUND")
   row.spark.base:SetHeight(1); row.spark.base:SetPoint("LEFT", 0, 0); row.spark.base:SetPoint("RIGHT", 0, 0)
-  row.spark.base:SetColorTexture(1, 1, 1, 0.15)
+  T.ApplyWash(row.spark.base, 2.5)                 -- re-applied every render (band may change)
   row.spark.marks = {}
   row.name:SetPoint("RIGHT", row.spark, "LEFT", -T.ColGap, 0)
   list.rows[i] = row
@@ -130,6 +130,8 @@ function Nearby.Render(snap)
         local row = AcquireLine(i)
         row.quest = q
         T.ApplyWash(row.hover, 2)                    -- terrain band may have changed
+        -- spark baseline follows the wash colour: white on dark/normal ground, black on sand
+        T.ApplyWash(row.spark.base, 2.5)
         -- re-apply tones every render (T.Text bakes colour at creation; see Lines.lua)
         T.SetColour(row.name, T.Tone.Near)
         if row.shape then row.shape:SetVertexColor(T.Tone.Near[1], T.Tone.Near[2], T.Tone.Near[3]); if row.shape.extra then row.shape.extra:SetVertexColor(T.Tone.Near[1], T.Tone.Near[2], T.Tone.Near[3]) end end

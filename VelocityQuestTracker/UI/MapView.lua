@@ -159,7 +159,7 @@ end
 -- Returns height drawn and whether any mark is still easing.
 function MapView.Render(snap)
   local Position = NS.Position
-  local now = snap.now or GetTime()
+  local now = GetTime()          -- animation clock; snap.now is frozen per model build (see Blocks.Render)
   local range = Position.UpdateNearbyRange(snap)
   local byType, order = SpawnsByType(snap)
   local half = FIELD_PX / 2

@@ -124,12 +124,13 @@ function Lines.AttachOtherZones(parent)
 end
 
 function Lines.RenderTurnIn(snap)
-  local h, hot = Render(Lines.turnin, snap.turninPlaces, function(g) return g.place end, function(q) return q.arrivedAt end, snap.now)
+  -- GetTime(), not snap.now: the outline must age across per-frame re-renders of one snapshot (see Blocks.Render)
+  local h, hot = Render(Lines.turnin, snap.turninPlaces, function(g) return g.place end, function(q) return q.arrivedAt end, GetTime())
   Lines.highlighting = hot          -- Panel keeps re-rendering while an outline is live
   return h
 end
 
 function Lines.RenderOtherZones(snap)
-  local h = Render(Lines.other, snap.otherZones, function(g) return string.format("+%d in %s", #g.quests, g.zone) end, nil, snap.now)
+  local h = Render(Lines.other, snap.otherZones, function(g) return string.format("+%d in %s", #g.quests, g.zone) end, nil, GetTime())
   return h
 end

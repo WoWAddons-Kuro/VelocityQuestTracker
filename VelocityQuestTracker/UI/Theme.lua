@@ -48,7 +48,9 @@ T.Band = "normal"               -- current LibZoneBrightness band
 
 -- Which base tones take which adjustment role. Yellows and the pop whites are left alone: they are
 -- accents, and brightening white does nothing.
-local ROLE = { Todo = "text", Near = "text", Label = "dim", Done = "dim" }
+-- Near is a mid-grey that reads as "dim" on sand: with the text factor (x1.15) the range-view lines
+-- came out duller than the already-lifted place lines (Westfall 2026-11-20), so it takes the dim lift.
+local ROLE = { Todo = "text", Near = "dim", Label = "dim", Done = "dim" }
 
 local function ZB() return LibStub and LibStub("LibZoneBrightness-1.0", true) end
 
