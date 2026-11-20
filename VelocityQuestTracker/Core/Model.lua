@@ -251,7 +251,9 @@ function Model.Build()
     end
   end
   Group(snap.byCategory.turnin, function(q) return q.turninPlace end, snap.turninPlaces, "place")
-  Group(snap.byCategory.other, function(q) return q.zoneName end, snap.otherZones, "zone")
+  -- Other-zone lines key on where the REMAINING WORK is (QuestieDB spawns), not the log header:
+  -- 399 is filed under Stormwind in the log but its compass is in Westfall -> "+1 in Westfall".
+  Group(snap.byCategory.other, function(q) return q.workZones[1] or q.zoneName end, snap.otherZones, "zone")
 
   current = snap
   SaveState()
@@ -288,7 +290,7 @@ function Model.Dump()
     #s.byCategory.turnin, #s.byCategory.active, #s.byCategory.nearby, #s.byCategory.other, focusSet and " | FOCUS" or "")
   for _, q in ipairs(s.quests) do
     print(string.format("  [%s] %d %s (L%d)%s%s zone=%s", q.category, q.questID, q.title, q.level,
-      q.isComplete and " COMPLETE" or "", q.isWatched and " watched" or "", tostring(q.zoneName)))
+      q.isComplete and " COMPLETE" or "", q.isWatched and " watched" or "", tostring(q.zoneName) .. " work=" .. table.concat(q.workZones or {}, "/") .. (q.turninPlace and (" turnin=" .. q.turninPlace) or "")))
     for _, o in ipairs(q.objectives) do
       print(string.format("      %d. %s  %d/%d %s%s", o.index, o.name, o.have, o.need, o.type, o.done and " done" or ""))
     end
