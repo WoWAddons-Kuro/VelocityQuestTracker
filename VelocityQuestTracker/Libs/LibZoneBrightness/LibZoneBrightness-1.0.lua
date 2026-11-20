@@ -56,15 +56,17 @@ lib.Table = lib.Table or {
 
 -- Adjustment constants (spec "Adjustment table"). Luminance scale = multiply r,g,b, clamp 0..1.
 --   text / dim : foreground tones. On bright ground BOTH go UP -- the dim tones are the ones that vanish
---                first on sand (owner 2026-11-20: "brighten up all the dim text"), so dim lifts harder
---                than text, which is already near white.
+--                first on sand, so dim lifts hardest. Tuned on Westfall 2026-11-20: dim x1.45 was still
+--                too faint ("40 % brighter") -> x2.00, which takes #8d958e to ~white and #566058 to #acc0b0;
+--                text x1.15 so near-whites clip. With the black backing the two still read as two levels
+--                because text keeps the solid shadow and dim does not.
 --   wash       : a translucent backing behind blocks. On bright ground the backing must be BLACK, not a
 --                brighter white: a white wash on sand lightens the sand. `washColour` is what the
 --                consumer should paint the wash with; the default (normal) is white at a faint alpha.
 --                AdjustAlpha = alpha * washMul + washAdd. bright uses washMul 0 so the result is the
 --                ABSOLUTE 0.30 the owner asked for (#000000 at 30 % alpha), not "base + 0.30".
 lib.Factors = lib.Factors or {
-  bright = { text = 1.06, dim = 1.45, washAdd = 0.30, washMul = 0.0, washColour = { 0, 0, 0 } },
+  bright = { text = 1.15, dim = 2.00, washAdd = 0.30, washMul = 0.0, washColour = { 0, 0, 0 } },
   normal = { text = 1.00, dim = 1.00, washAdd = 0.00, washMul = 1.0, washColour = { 1, 1, 1 } },
   dark   = { text = 1.00, dim = 1.10, washAdd = 0.00, washMul = 1.5, washColour = { 1, 1, 1 } },
 }
