@@ -109,6 +109,10 @@ local function LayoutSegments(row, need, hideDone, have)
     local c = (i - 1) % perRow
     seg:ClearAllPoints()
     seg:SetSize(segW, T.SegHeight)
+    -- Layout is the authority for the resting size: record it so the pop swell scales from THIS
+    -- width, not a stale one captured before a re-layout (owner 2026-11-20: a re-laid row kept an old
+    -- baseW and drew a wide white slab in place of its done bricks).
+    seg.layoutW = segW
     seg:SetPoint("TOPLEFT", row.bar, "TOPLEFT", c * (segW + T.SegGap), -r * (T.SegHeight + T.SegGap))
     seg:Show()
     shown = shown + 1
@@ -159,13 +163,14 @@ local function RenderRow(block, idx, obj, quest, now)
       T.SetColour(seg, SegColour(seg, now))
       -- pop swell: grow around the segment's own centre so neighbours are not displaced
       local sx, sy = SegScale(seg, now)
+      local w = seg.layoutW or seg:GetWidth()
       if sx ~= 1 or sy ~= 1 then
-        local w, h = seg.baseW or seg:GetWidth(), T.SegHeight
-        seg.baseW = w
-        seg:SetSize(w * sx, h * sy)
+        seg:SetSize(w * sx, T.SegHeight * sy)
         seg:SetDrawLayer("OVERLAY")
-      elseif seg.baseW then
-        seg:SetSize(seg.baseW, T.SegHeight); seg.baseW = nil; seg:SetDrawLayer("ARTWORK")
+      else
+        -- resting: always restore the layout size and layer (not only when a swell just ended)
+        seg:SetSize(w, T.SegHeight)
+        seg:SetDrawLayer("ARTWORK")
       end
       if SegStep(seg, now) then animating = true end
     end
