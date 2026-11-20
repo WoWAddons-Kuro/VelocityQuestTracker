@@ -62,7 +62,7 @@ local function Objectives(logIndex, questID)
     local r = rich and rich[j]
     if r and r.numRequired and r.numRequired > 0 then have, need = r.numFulfilled or have or 0, r.numRequired end
     if not need or need < 1 then need = 1; have = finished and 1 or 0 end
-    out[j] = { index = j, text = text or "", name = name, type = otype or "log", have = have or 0, need = need, done = finished and true or false }
+    out[j] = { index = j, text = text or "", name = name, type = otype or "log", have = have or 0, need = need, done = finished and true or false, counted = (r and (r.numRequired or 0) > 0) or (have ~= nil and need ~= nil and need > 0 and text ~= nil and text:find("%d+%s*/%s*%d+") ~= nil) }
   end
   return out
 end

@@ -67,13 +67,31 @@ function Client.DisplayNameFromParts(name, surname)
 end
 
 -- Complete means every objective is done. The log's own flag (C_QuestLog.IsComplete / the
--- GetQuestLogTitle isComplete field) is the authority ONLY when there are no counted objectives
--- (errand / "speak with" quests, which can arrive complete). Seen on Forever: IsComplete(399) true
--- while "0/1 A Simple Compass" was outstanding, which put the quest on the turn-in line.
+-- GetQuestLogTitle isComplete field) rules for objectives WITHOUT a real count: errand / "speak with"
+-- / escort / event objectives, whose per-objective `finished` lags on Forever (Therylune's Escape
+-- 2026-11-20: the log showed "(Complete)", GetQuestObjectives().finished stayed false). Counted
+-- objectives (have/need from numRequired) are the authority for themselves: IsComplete(399) was true
+-- while "0/1 A Simple Compass" was outstanding.
+-- When the log says complete, no-count objectives are also marked done so the view agrees.
 function Client.DeriveComplete(logSaysComplete, objectives)
   if #objectives == 0 then return logSaysComplete and true or false end
+  local allNoCount = true
   for _, o in ipairs(objectives) do
-    if not o.done and o.have < o.need then return false end
+    if o.counted then
+      allNoCount = false
+      if not o.done and o.have < o.need then return false end
+    end
+  end
+  if allNoCount then
+    if logSaysComplete then for _, o in ipairs(objectives) do o.done = true; o.have = o.need end end
+    return logSaysComplete and true or false
+  end
+  -- mixed: counted ones all done; no-count ones follow the log flag
+  for _, o in ipairs(objectives) do
+    if not o.counted then
+      if logSaysComplete then o.done = true; o.have = o.need
+      elseif not o.done then return false end
+    end
   end
   return true
 end

@@ -72,7 +72,7 @@ local function Objectives(questID)
     local finished = o.finished or textComplete
     if o.numRequired and o.numRequired > 0 then have, need = o.numFulfilled or 0, o.numRequired end
     if not need or need < 1 then need = 1; have = finished and 1 or 0 end
-    out[j] = { index = j, text = o.text or "", name = name, type = o.type or "log", have = have or 0, need = need, done = finished and true or false }
+    out[j] = { index = j, text = o.text or "", name = name, type = o.type or "log", have = have or 0, need = need, done = finished and true or false, counted = (o.numRequired or 0) > 0 }
   end
   return out
 end
