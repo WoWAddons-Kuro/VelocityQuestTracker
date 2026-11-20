@@ -19,6 +19,7 @@ Client\Client_ClassicEra.lua
 Client\Client_Forever.lua
 Client\Client_Select.lua
 
+Core\Location.lua
 Core\Model.lua
 
 UI\Theme.lua

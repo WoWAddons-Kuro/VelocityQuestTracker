@@ -54,6 +54,11 @@ local function Slash(msg)
     Util.Print("tracker %s", NS.db.settings.Enabled and "enabled" or "disabled")
   elseif cmd == "options" or cmd == "config" or cmd == "settings" then NS.Options.Open()
   elseif cmd == "dump" then Model.Dump()
+  elseif cmd == "loc" then
+    local id = tonumber(rest)
+    local found
+    for _, q in ipairs(Model.Current().quests) do if q.questID == id then found = q end end
+    if found then NS.Location.Dump(found) else Util.Print("usage: /vqt loc <questID in log>  (%s)", NS.Location.Status()) end
   elseif cmd == "touch" then
     local id = tonumber(rest)
     if id then Model.TouchQuest(id); Util.Print("quest %d marked active", id) else Util.Print("usage: /vqt touch <questID>") end

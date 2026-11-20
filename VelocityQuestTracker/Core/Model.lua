@@ -23,6 +23,8 @@ local recentUnits = {}              -- questID -> objIndex -> { [unitIndex] = Ge
 local order = {}                    -- questID -> insertion rank
 local nextRank = 1
 local knownQuestIDs = {}            -- questID -> true  (quests seen in a previous snapshot)
+local wasComplete = {}              -- questID -> bool  (isComplete at the last build; detects becoming complete)
+local turninArrivedAt = {}          -- questID -> GetTime() when it first landed on the turn-in LINE (for the highlight)
 local primed = false                -- first snapshot taken (so a login full-log is not "all new")
 local dirtyState = {}
 local listeners = {}                -- fn(snapshot, changes)
@@ -62,6 +64,10 @@ local function DiffCounts(quests, now)
     local prev = lastCounts[q.questID]
     local isNew = not knownQuestIDs[q.questID]
     if isNew and primed then Touch(q.questID, now) end      -- accepted during play -> active
+    -- Became complete since the last build (last unit landed, or an errand quest that is complete on
+    -- accept): that is activity too, so the quest shows as a hand-in card before it joins the line.
+    if primed and q.isComplete and not wasComplete[q.questID] then Touch(q.questID, now) end
+    wasComplete[q.questID] = q.isComplete and true or false
     local cur = {}
     for _, o in ipairs(q.objectives) do
       cur[o.index] = o.have
@@ -87,12 +93,50 @@ local function DiffCounts(quests, now)
   return changes
 end
 
+-- Hand-in place name for a complete quest. QuestieDB finisher sub-zone when Location knows it
+-- (M2+), else the quest-log header zone (M1 behaviour).
+function Model.PlaceFor(q)
+  local Location = NS.Location
+  if Location and Location.IsAvailable and Location.IsAvailable() then
+    local f = Location.FinisherFor(q.questID)
+    if f and f.spawn then return Location.PlaceNameForArea(f.spawn.areaID) or q.zoneName end
+  end
+  return q.zoneName
+end
+
+-- Zone names where a quest's REMAINING work is (QuestieDB spawn zones of unfinished objectives).
+-- Falls back to { q.zoneName } (the quest-log header) when QuestieDB does not know the quest.
+-- "Humble Beginnings" is accepted in Stormwind, filed under Stormwind in the log, but its compass is
+-- in Westfall: with QuestieDB it is a Westfall quest here.
+function Model.WorkZonesFor(q)
+  local Location = NS.Location
+  local names = {}
+  if Location and Location.IsAvailable and Location.IsAvailable() then
+    for areaID in pairs(Location.WorkZonesForQuest(q)) do
+      local name = Location.ZoneNameForArea(areaID)
+      if name then names[#names + 1] = name end
+    end
+    table.sort(names)
+  end
+  if #names == 0 and q.zoneName then names[1] = q.zoneName end
+  return names
+end
+
 local function Categorise(q, now, zone)
-  if q.isComplete then return "turnin" end
   local at = lastActivityAt[q.questID]
   local window = Settings().ActiveWindowSeconds or 300
-  if at and (now - at) < window then return "active" end
-  if q.zoneName == zone then return "nearby" end
+  local recentlyActive = at and (now - at) < window
+  -- Complete quests: a card (part 2, showing the hand-in place) while recently active, then the
+  -- turn-in line. Becoming complete counts as activity (DiffCounts touches it), so a freshly
+  -- finished quest -- or an errand quest accepted already complete -- always shows as a card first.
+  if q.isComplete then
+    if recentlyActive then return "turnin_card" end
+    -- first build where it is on the line: remember when, so the view can highlight its square
+    if not turninArrivedAt[q.questID] then turninArrivedAt[q.questID] = now end
+    return "turnin"
+  end
+  if recentlyActive then return "active" end
+  for _, name in ipairs(q.workZones) do if name == zone then return "nearby" end end
   return "other"
 end
 
@@ -105,13 +149,16 @@ function Model.Build()
   local quests = Client.Quests() or {}
   local changes = DiffCounts(quests, now)
 
-  local snap = { quests = {}, byCategory = { turnin = {}, active = {}, nearby = {}, other = {} }, turninPlaces = {}, otherZones = {}, zone = zone, now = now, changes = changes }
+  local snap = { quests = {}, byCategory = { turnin = {}, turnin_card = {}, active = {}, nearby = {}, other = {} }, turninPlaces = {}, otherZones = {}, zone = zone, now = now, changes = changes }
   for _, q in ipairs(quests) do
     if not focusSet or focusSet[q.questID] then
       q.rank = Rank(q.questID)
+      q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
       q.category = Categorise(q, now, zone)
       q.lastActivityAt = lastActivityAt[q.questID]
       q.recent = recentUnits[q.questID]
+      q.arrivedAt = turninArrivedAt[q.questID]       -- when it landed on the turn-in line (nil until then)
+      if q.isComplete then q.turninPlace = Model.PlaceFor(q) end
       snap.quests[#snap.quests + 1] = q
       local bucket = snap.byCategory[q.category]
       bucket[#bucket + 1] = q
@@ -131,7 +178,7 @@ function Model.Build()
       g.quests[#g.quests + 1] = q
     end
   end
-  Group(snap.byCategory.turnin, function(q) return q.zoneName end, snap.turninPlaces, "place")
+  Group(snap.byCategory.turnin, function(q) return q.turninPlace end, snap.turninPlaces, "place")
   Group(snap.byCategory.other, function(q) return q.zoneName end, snap.otherZones, "zone")
 
   current = snap

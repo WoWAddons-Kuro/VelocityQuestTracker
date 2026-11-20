@@ -37,7 +37,7 @@ function Panel.Render()
 end
 
 local function OnUpdate()
-  if Blocks.animating then Panel.Render() end
+  if Blocks.animating or Lines.highlighting then Panel.Render() end
 end
 
 function Panel.Create()

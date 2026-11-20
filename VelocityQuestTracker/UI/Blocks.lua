@@ -211,6 +211,48 @@ local function RenderBlock(b, quest, now)
   return h, anyAnim, shownRows
 end
 
+-- A complete quest, still recently active: the block becomes a hand-in card. Title as usual, then
+-- one bright row: check glyph, the hand-in place (q.turninPlace), a difficulty square. The check is
+-- yellow (Recent) for the hold time after completion so the eye lands on "done, go here".
+local function RenderHandInCard(b, quest, now)
+  b.title:SetText(quest.title)
+  for idx = 1, #b.rows do b.rows[idx]:Hide() end
+  local h = b.handin
+  if not h then
+    h = CreateFrame("Frame", nil, b)
+    h:SetHeight(T.RowHeight)
+    h.check = h:CreateTexture(nil, "ARTWORK")
+    h.check:SetSize(14, 14); h.check:SetPoint("LEFT", 0, 0)
+    local atlasOk = h.check.SetAtlas and pcall(h.check.SetAtlas, h.check, "common-icon-checkmark")
+    if not (atlasOk and h.check:GetAtlas()) then h.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready") end
+    h.place = T.Text(h, T.RowSize)
+    h.place:SetPoint("LEFT", h.check, "RIGHT", 8, 0)
+    h.square = h:CreateTexture(nil, "ARTWORK")
+    h.square:SetSize(T.Square, T.Square)
+    h.square:SetPoint("LEFT", h.place, "RIGHT", 8, 0)
+    b.handin = h
+  end
+  h.place:SetText(quest.turninPlace or quest.zoneName or "?")
+  T.SetColour(h.square, T.DifficultyColour(quest.level))
+  -- check tone: yellow for the hold window after completion, then label tone
+  local sinceDone = quest.lastActivityAt and (now - quest.lastActivityAt) or math.huge
+  local hold = Settings().HoldSeconds or 4
+  local fade = Settings().FadeSeconds or 1
+  local c
+  if sinceDone < hold then c = T.Tone.Recent
+  elseif sinceDone < hold + fade then local r, g, bb = Util.Lerp3(T.Tone.Recent, T.Tone.Label, (sinceDone - hold) / fade); c = { r, g, bb }
+  else c = T.Tone.Label end
+  h.check:SetVertexColor(c[1], c[2], c[3])
+  T.SetColour(h.place, T.Tone.Todo)
+  h:ClearAllPoints()
+  h:SetPoint("TOPLEFT", b, "TOPLEFT", T.PadX, -(6 + T.LabelSize + 4))
+  h:SetPoint("RIGHT", b, "RIGHT", -T.PadX, 0)
+  h:Show()
+  local height = 6 + T.LabelSize + 4 + T.RowHeight + 6
+  b:SetHeight(height)
+  return height, sinceDone < hold + fade
+end
+
 -- Public ------------------------------------------------------------------------------
 function Blocks.Attach(parent)
   if container then return container end
@@ -231,6 +273,8 @@ function Blocks.Render(snap)
   local anyAnim = false
   -- ensure blocks exist for every active quest (appends new ones to slot order)
   for _, q in ipairs(snap.byCategory.active) do AcquireBlock(q.questID); present[q.questID] = q end
+  -- complete-but-recent quests stay as a hand-in card in the same slot
+  for _, q in ipairs(snap.byCategory.turnin_card or {}) do AcquireBlock(q.questID); present[q.questID] = q end
   -- lingering complete quests: still drawn while fading
   for _, q in ipairs(snap.byCategory.turnin) do
     local b = blocksByQuest[q.questID]
@@ -240,7 +284,9 @@ function Blocks.Render(snap)
     local b = blocksByQuest[qid]
     local q = present[qid]
     if q then
-      local h, anim = RenderBlock(b, q, now)
+      local h, anim
+      if q.isComplete and not lingering[qid] and not b.lastAnimating then h, anim = RenderHandInCard(b, q, now)
+      else h, anim = RenderBlock(b, q, now); if b.handin then b.handin:Hide() end end
       b.lastAnimating = anim
       if anim then anyAnim = true end
       if lingering[qid] and not anim then
