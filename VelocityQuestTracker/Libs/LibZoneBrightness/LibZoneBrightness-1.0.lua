@@ -61,8 +61,10 @@ lib.Table = lib.Table or {
 --   wash       : a translucent backing behind blocks. On bright ground the backing must be BLACK, not a
 --                brighter white: a white wash on sand lightens the sand. `washColour` is what the
 --                consumer should paint the wash with; the default (normal) is white at a faint alpha.
+--                AdjustAlpha = alpha * washMul + washAdd. bright uses washMul 0 so the result is the
+--                ABSOLUTE 0.30 the owner asked for (#000000 at 30 % alpha), not "base + 0.30".
 lib.Factors = lib.Factors or {
-  bright = { text = 1.06, dim = 1.45, washAdd = 0.30, washMul = 1.0, washColour = { 0, 0, 0 } },
+  bright = { text = 1.06, dim = 1.45, washAdd = 0.30, washMul = 0.0, washColour = { 0, 0, 0 } },
   normal = { text = 1.00, dim = 1.00, washAdd = 0.00, washMul = 1.0, washColour = { 1, 1, 1 } },
   dark   = { text = 1.00, dim = 1.10, washAdd = 0.00, washMul = 1.5, washColour = { 1, 1, 1 } },
 }
