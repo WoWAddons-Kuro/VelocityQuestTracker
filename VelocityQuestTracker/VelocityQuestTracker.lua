@@ -82,7 +82,8 @@ end
 -- Events ------------------------------------------------------------------------------
 local QUEST_EVENTS = {
   "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE",
-  "UNIT_QUEST_LOG_CHANGED", "QUEST_WATCH_UPDATE", "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED_INDOORS",
+  "UNIT_QUEST_LOG_CHANGED", "QUEST_WATCH_UPDATE", "QUEST_WATCH_LIST_CHANGED",   -- LIST_CHANGED = the track checkbox (Forever)
+  "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED_INDOORS",
 }
 
 local f = CreateFrame("Frame")

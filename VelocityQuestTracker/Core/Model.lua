@@ -113,9 +113,9 @@ local function DiffCounts(quests, now)
     if primed and q.isComplete and not wasComplete[q.questID] then Touch(q.questID, now) end
     wasComplete[q.questID] = q.isComplete and true or false
     -- Tracked == active (owner, 2026-11-20): the player ticking "track" in the quest log is activity.
-    -- At login (not primed) a watched quest is also made active so the view matches the stock state.
-    if q.isWatched and (not wasWatched[q.questID] or not primed) and not lastActivityAt[q.questID] then Touch(q.questID, now)
-    elseif q.isWatched and primed and not wasWatched[q.questID] then Touch(q.questID, now) end
+    -- Any build where the flag turned on since the last one (including the first build after login,
+    -- where wasWatched is empty) is a Touch.
+    if q.isWatched and not wasWatched[q.questID] then Touch(q.questID, now) end
     wasWatched[q.questID] = q.isWatched and true or false
     local cur = {}
     for _, o in ipairs(q.objectives) do
@@ -148,9 +148,12 @@ function Model.PlaceFor(q)
   local Location = NS.Location
   if Location and Location.IsAvailable and Location.IsAvailable() then
     local f = Location.FinisherFor(q.questID)
-    if f and f.spawn then return Location.PlaceNameForArea(f.spawn.areaID) or q.zoneName end
+    if f and f.spawn then
+      -- place = sub-zone for display; zone = parent zone for the in-zone test
+      return Location.PlaceNameForArea(f.spawn.areaID) or q.zoneName, Location.ZoneNameForArea(f.spawn.areaID) or q.zoneName
+    end
   end
-  return q.zoneName
+  return q.zoneName, q.zoneName
 end
 
 -- Zone names where a quest's REMAINING work is (QuestieDB spawn zones of unfinished objectives).
@@ -175,19 +178,25 @@ local function Categorise(q, now, zone)
   local at = lastActivityAt[q.questID]
   local window = Settings().ActiveWindowSeconds or 300
   local recentlyActive = at and (now - at) < window
+  -- Active is IN-ZONE only (owner, 2026-11-20): a tracked/recent quest whose remaining work is in
+  -- another zone is listed under that zone, not in the block. A complete quest's "zone" for this
+  -- purpose is where it is handed in.
+  local inZone = false
+  for _, name in ipairs(q.workZones) do if name == zone then inZone = true break end end
   -- Complete quests: a card (part 2, showing the hand-in place) while recently active, then the
   -- turn-in line. Becoming complete counts as activity (DiffCounts touches it), so a freshly
   -- finished quest -- or an errand quest accepted already complete -- always shows as a card first.
   if q.isComplete then
-    if recentlyActive then return "turnin_card" end
+    local handInZone = q.turninZone
+    if recentlyActive and (handInZone == nil or handInZone == zone) then return "turnin_card" end
     -- Dropped from the card onto the line just now (previous build had it as a card): stamp the
     -- arrival so the view can flash its square. Quests that were already on the line at login, or
     -- that never had a card, are not stamped.
     if lastCategory[q.questID] == "turnin_card" then turninArrivedAt[q.questID] = now end
     return "turnin"
   end
-  if recentlyActive then return "active" end
-  for _, name in ipairs(q.workZones) do if name == zone then return "nearby" end end
+  if recentlyActive and inZone then return "active" end
+  if inZone then return "nearby" end
   return "other"
 end
 
@@ -205,6 +214,7 @@ function Model.Build()
     if not focusSet or focusSet[q.questID] then
       q.rank = Rank(q.questID)
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
+      if q.isComplete then q.turninPlace, q.turninZone = Model.PlaceFor(q) end   -- before Categorise: the card is in-zone only
       q.category = Categorise(q, now, zone)
       -- Tracked == active, the other direction: a quest that just left active (or the hand-in card)
       -- is untracked in the stock log when "Auto-untrack inactive quests" is on. Only on the
@@ -220,7 +230,7 @@ function Model.Build()
       q.lastActivityAt = lastActivityAt[q.questID]
       q.recent = recentUnits[q.questID]
       q.arrivedAt = turninArrivedAt[q.questID]       -- when it landed on the turn-in line (nil until then)
-      if q.isComplete then q.turninPlace = Model.PlaceFor(q) end
+      -- (turninPlace / turninZone set above, before Categorise)
       snap.quests[#snap.quests + 1] = q
       local bucket = snap.byCategory[q.category]
       bucket[#bucket + 1] = q
