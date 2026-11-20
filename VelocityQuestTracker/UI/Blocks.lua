@@ -84,9 +84,14 @@ local function AcquireRow(block, idx)
 end
 
 -- Lay out `need` segments in rows of T.SegPerRow inside row.bar; returns bar height.
+--
+-- INVARIANT (the "tall brick" family of bugs, three recurrences 2026-11-20): layout OWNS every
+-- segment's resting size and sets it unconditionally here -- visible or hidden. The pop swell is
+-- applied AFTER this, as a pure function of (state, t0, now), and is never stored. So a segment that is
+-- hidden mid-swell, or re-laid out to a new width mid-swell, has no stale size to come back with: the
+-- next layout puts it at segW x SegHeight before anything else looks at it.
 local function LayoutSegments(row, need, hideDone, have)
   local perRow = T.SegPerRow
-  local shown = 0
   local visible = {}
   for u = 1, need do
     if not (hideDone and u <= have and (row.segs[u] == nil or row.segs[u].state == "done" or row.segs[u].state == "todo")) then
@@ -98,33 +103,30 @@ local function LayoutSegments(row, need, hideDone, have)
   local cols = math.min(n, perRow)
   if cols < 1 then cols = 1 end
   local segW = (T.BarWidth - (cols - 1) * T.SegGap) / cols
-  for i, u in ipairs(visible) do
+  -- every segment that exists gets its resting size and the resting layer, shown or not
+  for u = 1, need do
     local seg = row.segs[u]
     if not seg then
       seg = row.bar:CreateTexture(nil, "ARTWORK")
       seg.state = "todo"
       row.segs[u] = seg
     end
+    seg:SetSize(segW, T.SegHeight)
+    seg:SetDrawLayer("ARTWORK")
+    seg:Hide()
+  end
+  for i, u in ipairs(visible) do
+    local seg = row.segs[u]
     local r = math.floor((i - 1) / perRow)
     local c = (i - 1) % perRow
     seg:ClearAllPoints()
-    seg:SetSize(segW, T.SegHeight)
-    -- Layout is the authority for the resting size: record it so the pop swell scales from THIS
-    -- width, not a stale one captured before a re-layout (owner 2026-11-20: a re-laid row kept an old
-    -- baseW and drew a wide white slab in place of its done bricks).
-    seg.layoutW = segW
     seg:SetPoint("TOPLEFT", row.bar, "TOPLEFT", c * (segW + T.SegGap), -r * (T.SegHeight + T.SegGap))
     seg:Show()
-    shown = shown + 1
   end
-  for u, seg in pairs(row.segs) do
-    local isVisible = false
-    for _, v in ipairs(visible) do if v == u then isVisible = true break end end
-    if not isVisible then seg:Hide() end
-  end
+  for u = need + 1, #row.segs do if row.segs[u] then row.segs[u]:Hide() end end
   local h = rows * T.SegHeight + (rows - 1) * T.SegGap
   row.bar:SetHeight(h)
-  return h
+  return h, segW
 end
 
 -- Apply the model's objective to a row. Returns row height.
@@ -152,27 +154,26 @@ local function RenderRow(block, idx, obj, quest, now)
       if newState == "pop" then seg.t0 = at or now end
     end
   end
-  for u = obj.need + 1, #row.segs do if row.segs[u] then row.segs[u]:Hide() end end
-  local barH = LayoutSegments(row, obj.need, s.HideCompletedSegments, obj.have)
+  local barH, segW = LayoutSegments(row, obj.need, s.HideCompletedSegments, obj.have)
   -- row tone: bright until the last unit's fade completes, then label tone
   local allDone = obj.have >= obj.need
   local animating = false
   for u = 1, obj.need do
     local seg = row.segs[u]
-    if seg and seg:IsShown() then
-      T.SetColour(seg, SegColour(seg, now))
-      -- pop swell: grow around the segment's own centre so neighbours are not displaced
-      local sx, sy = SegScale(seg, now)
-      local w = seg.layoutW or seg:GetWidth()
-      if sx ~= 1 or sy ~= 1 then
-        seg:SetSize(w * sx, T.SegHeight * sy)
-        seg:SetDrawLayer("OVERLAY")
-      else
-        -- resting: always restore the layout size and layer (not only when a swell just ended)
-        seg:SetSize(w, T.SegHeight)
-        seg:SetDrawLayer("ARTWORK")
-      end
+    if seg then
+      -- State advances for EVERY segment, shown or hidden: a hidden segment frozen in "pop" was the
+      -- originating mechanism of the tall-brick bugs (it kept its swollen size until something
+      -- happened to render it again).
       if SegStep(seg, now) then animating = true end
+      if seg:IsShown() then
+        T.SetColour(seg, SegColour(seg, now))
+        -- pop swell, applied on top of the resting size layout just set; never stored
+        local sx, sy = SegScale(seg, now)
+        if sx ~= 1 or sy ~= 1 then
+          seg:SetSize(segW * sx, T.SegHeight * sy)
+          seg:SetDrawLayer("OVERLAY")
+        end
+      end
     end
   end
   if allDone then
