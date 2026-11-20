@@ -166,6 +166,7 @@ local function Begin(row)
   for _, r in ipairs(c.listRows) do r:Hide() end
   for _, r in ipairs(c.blockRows) do r:Hide() end
   if c.blockTitle then c.blockTitle:Hide() end
+  if c.intro then c.intro:Hide() end
   return c
 end
 
@@ -203,6 +204,22 @@ function HoverCard.ShowBlock(row, quest)
   c.blockTitle:Show()
   local width = math.max(T.PanelWidth, c.blockTitle.text:GetStringWidth() + 2 * PAD)
   local y = PAD + BLOCK_TITLE_H + 2
+  -- Short intro: the quest's objectives text (the "Collect 4 Grizzled Scalps from ..." paragraph),
+  -- wrapped to the card width, label tone. The long description is left to the quest log.
+  if not c.intro then
+    c.intro = T.Text(c, T.LabelSize, T.Tone.Label)
+    c.intro:SetWordWrap(true); c.intro:SetNonSpaceWrap(false); c.intro:SetJustifyH("LEFT")
+  end
+  local _, objectivesText = NS.Client.QuestText(quest.questID)
+  if objectivesText and objectivesText ~= "" then
+    c.intro:SetWidth(width - 2 * PAD)
+    c.intro:SetText(objectivesText)
+    c.intro:ClearAllPoints(); c.intro:SetPoint("TOPLEFT", c, "TOPLEFT", PAD, -y)
+    c.intro:Show()
+    y = y + c.intro:GetStringHeight() + 6
+  else
+    c.intro:Hide()
+  end
   for i, o in ipairs(quest.objectives) do
     local r = AcquireBlockRow(i)
     r.name:SetText(o.name)

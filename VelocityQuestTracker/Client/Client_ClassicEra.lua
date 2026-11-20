@@ -38,6 +38,13 @@ function impl.SetWatched(questID, watched)
   return false
 end
 
+-- GetQuestLogQuestText([logIndex]) takes an index on Era too (QuestLogFrame.lua :367); no select needed.
+function impl.QuestText(questID)
+  local index = GetQuestLogIndexByID and GetQuestLogIndexByID(questID)
+  if not index or index == 0 or not GetQuestLogQuestText then return nil end
+  return GetQuestLogQuestText(index)
+end
+
 local function Objectives(logIndex, questID)
   local out = {}
   local rich = C_QuestLog and C_QuestLog.GetQuestObjectives and C_QuestLog.GetQuestObjectives(questID)

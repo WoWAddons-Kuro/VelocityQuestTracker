@@ -35,6 +35,13 @@ function impl.SetWatched(questID, watched)
   return false
 end
 
+-- GetQuestLogQuestText([logIndex]) is present on Forever (1.60.1+); index from GetLogIndexForQuestID.
+function impl.QuestText(questID)
+  local index = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(questID)
+  if not index or not GetQuestLogQuestText then return nil end
+  return GetQuestLogQuestText(index)
+end
+
 local function Objectives(questID)
   local out = {}
   local objs = C_QuestLog.GetQuestObjectives(questID) or {}

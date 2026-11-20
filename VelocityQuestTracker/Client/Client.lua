@@ -37,6 +37,7 @@ Client.INTERFACE = {
   "CurrentZoneName",    -- -> string      GetRealZoneText()
   "OpenQuestLog",       -- (questID)      open the game's quest log to this quest; no-op in combat
   "SetWatched",         -- (questID, bool) set the stock "tracked" flag (the model keeps tracked == active)
+  "QuestText",          -- (questID) -> description, objectivesText  (GetQuestLogQuestText by log index; nil if not in log)
 }
 
 -- Shared helpers for the flavour files ------------------------------------------------
