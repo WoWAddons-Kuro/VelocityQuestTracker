@@ -1,0 +1,137 @@
+-- Velocity Quest Tracker: the settings panel. Pattern: GotJunk/GotJunk.lua (Section / Check /
+-- Slider helpers on a scrolling canvas, Settings.RegisterCanvasLayoutCategory with the legacy
+-- InterfaceOptions_AddCategory fallback). Settings live in VelocityQuestTrackerDB.settings.
+local ADDON_NAME, NS = ...
+local Util = NS.Util
+
+local Options = {}
+NS.Options = Options
+
+local optionsFrame, optionsCategory
+local widgets = {}
+
+local function db() return NS.db.settings end
+
+function Options.Refresh()
+  for _, w in ipairs(widgets) do if w.Update then w:Update() end end
+end
+
+function Options.Open()
+  if Settings and Settings.OpenToCategory and optionsCategory then Settings.OpenToCategory(optionsCategory:GetID())
+  elseif InterfaceOptionsFrame_OpenToCategory and optionsFrame then InterfaceOptionsFrame_OpenToCategory(optionsFrame); InterfaceOptionsFrame_OpenToCategory(optionsFrame) end
+end
+
+function Options.Create()
+  if optionsFrame then return end
+  optionsFrame = CreateFrame("Frame", "VelocityQuestTrackerOptions", UIParent)
+  optionsFrame.name = "Velocity Quest Tracker"
+  optionsFrame:Hide()
+
+  local scroll = CreateFrame("ScrollFrame", "VelocityQuestTrackerOptionsScroll", optionsFrame, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", 0, -4); scroll:SetPoint("BOTTOMRIGHT", -28, 4)
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(620, 900)
+  scroll:SetScrollChild(content)
+  scroll:SetScript("OnSizeChanged", function(self, w) content:SetWidth(math.max(620, w)) end)
+  scroll:EnableMouseWheel(true)
+  scroll:SetScript("OnMouseWheel", function(self, delta)
+    local max = self:GetVerticalScrollRange()
+    self:SetVerticalScroll(math.max(0, math.min(max, self:GetVerticalScroll() - delta * 40)))
+  end)
+
+  local title = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+  title:SetPoint("TOPLEFT", 16, -16); title:SetText("Velocity Quest Tracker")
+  local sub = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+  sub:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6); sub:SetWidth(560); sub:SetJustifyH("LEFT")
+  sub:SetText("Shows the state of your quest work and leaves the decisions to you. Quests you have acted on in the last few minutes sit in a block at the top; the rest of the zone's work is listed as nearby; other zones fold to one line each. Position the panel with Edit Mode.")
+
+  local BOX_W, PAD = 580, 10
+  local last, lastDy = sub, -14
+  local function Place(w, dy, dx) w:SetPoint("TOPLEFT", last, "BOTTOMLEFT", dx or 0, dy or lastDy); last = w; lastDy = -6 end
+
+  local function Check(parent, key, label, tip, onChange)
+    local cb = CreateFrame("CheckButton", nil, parent, "InterfaceOptionsCheckButtonTemplate")
+    cb.Text:SetText(label)
+    cb.tooltipText = tip
+    cb:SetScript("OnClick", function(self) db()[key] = self:GetChecked() and true or false; if onChange then onChange() end; NS.OnSettingChanged(key) end)
+    cb.Update = function(self) self:SetChecked(db()[key] and true or false) end
+    widgets[#widgets + 1] = cb
+    return cb
+  end
+
+  local function Slider(parent, name, key, default, minV, maxV, step, labelFn)
+    local holder = CreateFrame("Frame", nil, parent); holder:SetSize(BOX_W - 2 * PAD, 44)
+    local label = holder:CreateFontString(nil, "ARTWORK", "GameFontHighlight"); label:SetPoint("TOPLEFT", 4, 0)
+    local s = CreateFrame("Slider", name, holder, "OptionsSliderTemplate")
+    s:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 2, -6); s:SetWidth(220)
+    s:SetMinMaxValues(minV, maxV); s:SetValueStep(step); s:SetObeyStepOnDrag(true)
+    _G[name .. "Low"]:SetText(tostring(minV)); _G[name .. "High"]:SetText(tostring(maxV)); _G[name .. "Text"]:SetText("")
+    s:SetScript("OnValueChanged", function(self, v)
+      v = math.floor(v / step + 0.5) * step
+      if db()[key] == v then return end
+      db()[key] = v; label:SetText(labelFn(v)); NS.OnSettingChanged(key)
+    end)
+    holder.Update = function() local v = db()[key] or default; s:SetValue(v); label:SetText(labelFn(v)) end
+    widgets[#widgets + 1] = holder
+    return holder
+  end
+
+  local function Section(header)
+    local box = CreateFrame("Frame", nil, content, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    box:SetWidth(BOX_W)
+    if box.SetBackdrop then
+      box:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+      box:SetBackdropColor(0, 0, 0, 0.25); box:SetBackdropBorderColor(0.6, 0.6, 0.6, 0.6)
+    end
+    local h = box:CreateFontString(nil, "ARTWORK", "GameFontNormal"); h:SetPoint("TOPLEFT", PAD, -PAD); h:SetText(header)
+    box.inner_last, box.inner_h = h, PAD + 14
+    function box:Add(w, height, dy, dx)
+      dy = dy or -6
+      w:SetPoint("TOPLEFT", self.inner_last, "BOTTOMLEFT", dx or 0, dy)
+      self.inner_last, self.inner_h = w, self.inner_h - dy + height
+      return w
+    end
+    function box:Finish() self:SetHeight(self.inner_h + PAD) end
+    Place(box, -14)
+    return box
+  end
+
+  -- The two headline checkboxes, directly under the intro.
+  Place(Check(content, "Enabled", "Enable Velocity Quest Tracker", "Shows the panel and hides the game's own quest tracker. Untick to put the stock tracker back."), -14)
+  Place(Check(content, "LockPosition", "Lock position (edit with Edit Mode)", "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by its own frame."), 26)
+
+  local blk = Section("Actionable block")
+  blk:Add(Slider(blk, "VelocityQuestTrackerOptActive", "ActiveWindowSeconds", 300, 60, 900, 30,
+    function(v) return string.format("A quest stays in the block for %d s after you act on it", v) end), 44, -10)
+  blk:Add(Check(blk, "HideCompletedSegments", "Hide completed segments", "Done units are not drawn; the bar shows only what is left."), 26, -10)
+  blk:Add(Check(blk, "HideCompletedRows", "Hide fully completed rows", "An objective row leaves the block once its last unit has faded."), 26)
+  blk:Finish()
+
+  local tm = Section("Recent-progress timing")
+  tm:Add(Slider(tm, "VelocityQuestTrackerOptHold", "HoldSeconds", 4, 1, 10, 0.5,
+    function(v) return string.format("Stay yellow: %.1f s", v) end), 44, -10)
+  tm:Add(Slider(tm, "VelocityQuestTrackerOptFade", "FadeSeconds", 1, 0.2, 3, 0.1,
+    function(v) return string.format("Fade to dim: %.1f s", v) end), 44, -10)
+  tm:Finish()
+
+  local pn = Section("Panel")
+  local reset = CreateFrame("Button", nil, pn, "UIPanelButtonTemplate")
+  reset:SetSize(160, 22); reset:SetText("Reset position")
+  reset:SetScript("OnClick", function() NS.EditMode.ResetPosition(); Util.Print("panel position reset") end)
+  pn:Add(reset, 22, -10, 4)
+  pn:Finish()
+
+  content:SetHeight(-select(5, last:GetPoint(1)) + last:GetHeight() + 60)
+  optionsFrame:SetScript("OnShow", function()
+    Options.Refresh()
+    local top = content:GetTop(); local bottom = last:GetBottom()
+    if top and bottom then content:SetHeight(top - bottom + 40) end
+  end)
+
+  if Settings and Settings.RegisterCanvasLayoutCategory then
+    optionsCategory = Settings.RegisterCanvasLayoutCategory(optionsFrame, "Velocity Quest Tracker")
+    Settings.RegisterAddOnCategory(optionsCategory)
+  elseif InterfaceOptions_AddCategory then
+    InterfaceOptions_AddCategory(optionsFrame)
+  end
+end

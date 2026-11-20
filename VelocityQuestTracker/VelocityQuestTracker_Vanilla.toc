@@ -1,0 +1,32 @@
+## Interface: 11509
+## Title: Velocity Quest Tracker
+## Notes: A quest tracker that shows the state of your work and leaves the decisions to you. Remaining work is bright, done work recedes, nothing moves without cause.
+## Author: Kuro
+## Version: @project-version@
+## SavedVariables: VelocityQuestTrackerDB
+## SavedVariablesPerCharacter: VelocityQuestTrackerCharDB
+## OptionalDeps: LibStub, LibEditMode, QuestieDB
+## X-Website: https://github.com/WoWAddons-Kuro/VelocityQuestTracker
+
+Libs\LibStub\LibStub.lua
+Libs\LibEditMode\embed.xml
+
+Core\Util.lua
+
+Client\Client.lua
+Client\Client_ClassicEra.lua
+Client\Client_Forever.lua
+Client\Client_Select.lua
+
+Core\Model.lua
+
+UI\Theme.lua
+UI\Blocks.lua
+UI\Lines.lua
+UI\Nearby.lua
+UI\Panel.lua
+UI\StockTracker.lua
+UI\EditMode.lua
+UI\Options.lua
+
+VelocityQuestTracker.lua

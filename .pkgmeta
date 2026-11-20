@@ -1,0 +1,13 @@
+package-as: VelocityQuestTracker
+
+move-folders:
+  VelocityQuestTracker/VelocityQuestTracker: VelocityQuestTracker
+
+ignore:
+  - ".git*"
+  - "*.md"
+  - SPECS
+  - Assets
+  - "*.png"
+  - "*.jpg"
+  - "*.html"

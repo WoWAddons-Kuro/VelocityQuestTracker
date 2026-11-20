@@ -1,0 +1,10 @@
+# Windows reserved-name device artifact
+nul
+
+# packager / release scratch
+.release/
+artifacts/
+
+# editor
+.vscode/
+*.swp

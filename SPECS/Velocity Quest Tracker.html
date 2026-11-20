@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Velocity Quest Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: one reading column; live mockup first, then the rules it encodes */
+:root{
+  --bg:#f3f5f1; --panel:#ffffff; --ink:#1a201b; --muted:#566058; --rule:#d4d9d2; --accent:#7a5a00;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  /* tracker tones: fixed, the tracker always sits on dark terrain */
+  --t-world:#1c231d; --t-todo:#f2f2ea; --t-near:#aab1aa; --t-done:#566058; --t-label:#8d958e; --t-recent:#ffcf4d;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111511; --panel:#191e19; --ink:#e8ebe5; --muted:#9aa39b; --rule:#2b322c; --accent:#ffcf4d;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111511; --panel:#191e19; --ink:#e8ebe5; --muted:#9aa39b; --rule:#2b322c; --accent:#ffcf4d;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+main{max-width:760px;margin:0 auto;padding:40px 20px 72px;display:flex;flex-direction:column;gap:36px}
+header{display:flex;flex-direction:column;gap:8px}
+h1{margin:0;font-size:28px;font-weight:600;line-height:1.2;text-wrap:balance}
+h2{margin:0;font-size:18px;font-weight:600;line-height:1.3;text-wrap:balance}
+h3{margin:4px 0 0;font-size:15px;font-weight:600;line-height:1.3}
+p{margin:0;max-width:65ch}
+.lede{color:var(--muted)}
+section{display:flex;flex-direction:column;gap:12px}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:65ch}
+
+.demo{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:20px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.world{background:var(--t-world);border-radius:8px;padding:20px 24px 20px 40px;flex:0 0 auto;max-width:100%}
+.controls{flex:1 1 220px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.controls button{font:inherit;font-size:14px;font-weight:500;color:var(--ink);background:transparent;border:1px solid var(--muted);border-radius:6px;padding:7px 12px;cursor:pointer}
+.controls button:hover{background:var(--rule)}
+.controls button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field-ctl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;font-size:14px}
+.field-ctl input{grid-column:1 / -1;width:100%;accent-color:var(--accent)}
+.field-ctl output{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ctl-label{font-size:14px;color:var(--muted)}
+.status{font-size:14px;color:var(--muted);min-height:3.1em}
+
+/* the tracker */
+.tracker{width:250px;max-width:100%;display:flex;flex-direction:column;gap:8px;font-family:var(--body);line-height:1.25}
+.placeline{display:flex;align-items:center;gap:8px;color:var(--t-label);font-size:12px;padding:0 10px}
+.placeline svg{flex:0 0 auto}
+.sqs{display:flex;gap:3px}
+.sqs i{display:block;width:6px;height:6px}
+.blocks{display:flex;flex-direction:column;gap:8px}
+.blocks:empty{display:none}
+.quest{background:rgba(255,255,255,0.06);border-radius:6px;padding:6px 10px 8px;display:flex;flex-direction:column;gap:5px}
+.qtitle{color:var(--t-label);font-size:12px;text-align:center}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 56px 28px;column-gap:8px;align-items:center;color:var(--t-todo);font-size:14px;transition:color 1s linear}
+.row.complete{color:var(--t-label)}
+.row .count{justify-self:end;font-variant-numeric:tabular-nums}
+.segs{display:flex;gap:2px;height:4px}
+.seg{flex:1;background:var(--t-todo)}
+.seg.done{background:var(--t-done)}
+.seg.recent{background:var(--t-recent)}
+.seg.fading{transition:background-color var(--fade,1s) linear}
+.seg.pop{animation:pop 280ms ease-out}
+@keyframes pop{
+  0%{background:#ffffff;transform:scale(1.15,3.4)}
+  60%{background:#ffe89a;transform:scale(1.05,1.8)}
+  100%{background:var(--t-recent);transform:none}
+}
+@media (prefers-reduced-motion: reduce){.seg.pop{animation:none}}
+
+.nearby{position:relative;display:flex;flex-direction:column;gap:8px}
+.tabs{position:absolute;left:-28px;top:0;display:flex;flex-direction:column;gap:4px;opacity:0;transition:opacity .15s}
+.world:hover .tabs,.world:focus-within .tabs{opacity:1}
+.tabs button{width:20px;height:20px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--t-label);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tabs button:hover{background:rgba(255,255,255,0.08)}
+.tabs button[aria-pressed="true"]{background:rgba(255,255,255,0.14);color:var(--t-todo)}
+.map{position:relative;width:250px;max-width:100%;height:250px;background:#222923;border-radius:6px;overflow:hidden}
+.ring-o,.ring-i{position:absolute;border-radius:50%}
+.ring-o{left:42px;top:42px;width:166px;height:166px;background:#2c342d}
+.ring-i{left:83px;top:83px;width:84px;height:84px;background:#222923}
+.shape{position:absolute;display:block}
+.shape.sq{width:6px;height:6px;background:var(--t-near)}
+.shape.circ{width:7px;height:7px;border-radius:50%;background:var(--t-near)}
+.shape.tri{width:0;height:0;border-left:3.5px solid transparent;border-right:3.5px solid transparent;border-bottom:7px solid var(--t-near)}
+.key{display:flex;flex-direction:column;gap:4px;padding:0 10px;color:var(--t-near);font-size:12px}
+.keyrow{display:grid;grid-template-columns:10px minmax(0,1fr);column-gap:8px;align-items:center}
+.keyrow .shape,.lrow .shape{position:static;justify-self:center}
+.lines{display:flex;flex-direction:column;gap:6px;padding:2px 10px 0}
+.lrow{display:grid;grid-template-columns:10px minmax(0,1fr) 60px;column-gap:8px;align-items:center;color:var(--t-near);font-size:12px}
+.lname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spark{position:relative;height:8px}
+.spark::before{content:"";position:absolute;left:0;right:0;top:3.5px;height:1px;background:rgba(255,255,255,0.15)}
+.spark i{position:absolute;top:2px;width:4px;height:4px;background:var(--t-near)}
+.none{color:var(--t-label);font-size:12px;padding:0 10px}
+
+.tones{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tone{border:1px solid var(--rule);border-radius:8px;padding:12px 14px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.chip{display:flex;align-items:center;gap:8px;font-weight:500}
+.sw{width:28px;height:8px;border-radius:1px;background:var(--t-world);padding:2px;display:flex}
+.sw i{flex:1;display:block}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:14px}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Velocity Quest Tracker</h1>
+<p class="lede">A quest tracker that shows the state of your work and leaves the decisions to you. Design basis and live mockup.</p>
+</header>
+
+<section aria-labelledby="h-demo">
+<h2 id="h-demo">Live mockup</h2>
+<div class="demo">
+  <div class="world"><div class="tracker" id="tracker"></div></div>
+  <div class="controls">
+    <div class="btns">
+      <button type="button" id="kill-0">Kill a nightsaber</button>
+      <button type="button" id="kill-1">Kill a thistle boar</button>
+      <button type="button" id="kill-2">Kill a Webwood Spider</button>
+      <button type="button" id="reset">Reset</button>
+    </div>
+    <div class="btns" role="group" aria-label="Nearby work view">
+      <span class="ctl-label" style="align-self:center">Nearby work</span>
+      <button type="button" id="view-map" aria-pressed="true">Map</button>
+      <button type="button" id="view-lines" aria-pressed="false">Lines</button>
+    </div>
+    <div class="field-ctl">
+      <label for="hold">Stay yellow</label><output id="hold-out" for="hold">4.0 s</output>
+      <input type="range" id="hold" min="1" max="10" step="0.5" value="4">
+    </div>
+    <div class="field-ctl">
+      <label for="fade">Fade to dim</label><output id="fade-out" for="fade">1.0 s</output>
+      <input type="range" id="fade" min="0.2" max="3" step="0.1" value="1">
+    </div>
+    <p class="status" id="status" aria-live="polite"></p>
+  </div>
+</div>
+<p class="lede">Hover the tracker to see the two view tabs on its left. The spider button shows an objective joining the block on its first kill. Quest and place names are examples, and the positions of the shapes are made up.</p>
+</section>
+
+<section aria-labelledby="h-principles">
+<h2 id="h-principles">Principles</h2>
+<ul>
+  <li><strong>Show state, never instructions.</strong> The tracker says what is owed, how much, where it can be done and where it is handed in. It does not pick a route, rank a "best next" or point you anywhere.</li>
+  <li><strong>Attention goes to what is left.</strong> Remaining work is bright. Finished work recedes.</li>
+  <li><strong>Nothing shifts without cause.</strong> A row keeps its slot. New entries take the next slot. Nothing re-sorts on a kill.</li>
+  <li><strong>No chrome at rest.</strong> No frame, header or buttons until you hover.</li>
+  <li><strong>Name the thing in the world.</strong> Mobs and objectives are recognisable. Quest names are labels and never carry emphasis.</li>
+</ul>
+</section>
+
+<section aria-labelledby="h-tones">
+<h2 id="h-tones">Three tones, one meaning each</h2>
+<div class="tones">
+  <div class="tone"><div class="chip"><span class="sw" aria-hidden="true"><i style="background:#f2f2ea"></i></span>Bright</div><span>Still to do, here. Open objective names, counts and every unit not yet done.</span></div>
+  <div class="tone"><div class="chip"><span class="sw" aria-hidden="true"><i style="background:#566058"></i></span>Dim</div><span>Done, or a label. Finished units, quest names, place names.</span></div>
+  <div class="tone"><div class="chip"><span class="sw" aria-hidden="true"><i style="background:#ffcf4d"></i></span>Yellow</div><span>Just happened. The unit completed most recently, for a few seconds.</span></div>
+</div>
+<p>Work that is nearby but not started uses a middle tone, between bright and dim. Difficulty colour appears only on the small squares of the turn-in and other-zone lines.</p>
+</section>
+
+<section aria-labelledby="h-parts">
+<h2 id="h-parts">The four parts, top to bottom</h2>
+
+<h3>1. Turn-in line</h3>
+<ul>
+  <li>One line per place: a check, the place name, and one square per completed quest to hand in there.</li>
+  <li>It answers where to go and how much is waiting. Individual quest names are not shown.</li>
+</ul>
+
+<h3>2. Actionable block</h3>
+<ul>
+  <li>One faint block per quest, with the quest name small, dim and centred at the top.</li>
+  <li>One row per objective, always the same shape: name, segmented bar, count, in fixed columns.</li>
+  <li>One segment per unit. Done segments are dim, remaining segments are bright, the latest is yellow.</li>
+  <li><strong>An objective joins when you act on it</strong>, by a kill or a loot. Walking past does not add it. A setting can switch this to joining by proximity.</li>
+  <li>When every objective in a quest is done, its block collapses into the turn-in line.</li>
+</ul>
+
+<h3>3. Nearby work</h3>
+<p>Work in this zone that you have not started, in one of two views. Both keep mob icons off the minimap.</p>
+<ul>
+  <li><strong>Map view.</strong> A square field as wide as the panel, north up, with you at the centre. Eight directions and three distance bands. A slightly brighter ring marks the middle band, so no player marker is needed.</li>
+  <li><strong>One shape per mob type</strong>, with a key below giving each full mob name. The same shape in two places means either place will do. Different shapes mean both are needed. You make the call.</li>
+  <li><strong>A shape is a unit owed.</strong> Units are split between places in proportion to how many spawns each has, so five owed with 50 spawns east and 10 west draws about four east and one west.</li>
+  <li><strong>Out of range, same zone:</strong> pinned flush to the edge of the field in its direction.</li>
+  <li><strong>Line view.</strong> One line per mob type: shape, full name, and a short line with a marker per unit placed by distance, in any direction. It is compact and suits zones you already know.</li>
+  <li><strong>Switching.</strong> Two tabs appear on the left of this section on hover.</li>
+</ul>
+
+<h3>4. Other zones</h3>
+<ul>
+  <li>One line per zone: "+N in Zone" and one square per quest, coloured by difficulty.</li>
+</ul>
+</section>
+
+<section aria-labelledby="h-timing">
+<h2 id="h-timing">Recent-progress timing</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th scope="col">Phase</th><th scope="col">Duration</th><th scope="col">What the segment does</th></tr></thead>
+<tbody>
+<tr><td>Pop</td><td class="num">0.28 s</td><td>Flashes white and swells, then settles to yellow. Fires on the progress event.</td></tr>
+<tr><td>Hold</td><td class="num">4 s</td><td>Stays yellow.</td></tr>
+<tr><td>Fade</td><td class="num">1 s</td><td>Yellow to dim, linear.</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+  <li>Each segment runs its own timer, so a fast chain of kills shows several yellow segments that fade in the order they landed.</li>
+  <li>When the last unit of an objective lands, its name and count dim together with that segment's fade.</li>
+</ul>
+</section>
+
+<section aria-labelledby="h-open">
+<h2 id="h-open">Not decided yet</h2>
+<ul>
+  <li><strong>How an objective leaves the block.</strong> Candidates: no progress for some minutes, distance from where you last progressed, displacement when the block is full, or never until complete.</li>
+  <li><strong>Shape budget.</strong> About six shapes stay distinct at this size. A zone with more mob types in range needs a fallback.</li>
+  <li><strong>One difficulty scale.</strong> The turn-in squares use the game's grey, green and yellow. The other-zone squares use grey, white and red. They should agree.</li>
+  <li><strong>Large counts.</strong> Seven segments is near the limit of the bar, and twenty shapes is a large stack on the map.</li>
+  <li><strong>Objectives with no count.</strong> "Speak with" and "Explore" objectives finish in one step and would go from the map straight to the turn-in line.</li>
+  <li><strong>Count text.</strong> "6/7" counts what is done while brightness counts what is left.</li>
+  <li><strong>Colours over real terrain.</strong> The block wash, the middle tone and the dim tone all need a playtest over snow, sand and forest.</li>
+  <li><strong>Field size.</strong> The map is the tallest part of the tracker. It could shrink while you have open objectives.</li>
+</ul>
+</section>
+
+<section aria-labelledby="h-build">
+<h2 id="h-build">Build notes</h2>
+<ul>
+  <li><strong>Everything is derived.</strong> The display comes from the quest log and your position. There is no plan or step pointer, so there is nothing to fall out of step with.</li>
+  <li><strong>Event-driven where the client allows.</strong> Quest events drive the block. Pop and fade are animations, and the hold is one one-shot timer per event.</li>
+  <li><strong>Position has no change event.</strong> The map and line views need position sampled while moving. Snapping to eight directions and three bands means the drawing changes only when something crosses a cell.</li>
+  <li><strong>Location data.</strong> Spawn and turn-in locations come from an existing open data set if one can be bundled, or from the addon recording them as you play.</li>
+  <li><strong>Standalone.</strong> It can accept a focus set of quest IDs from another addon, such as the split tracker, and works without one.</li>
+  <li><strong>First build.</strong> The map alone, with one zone of spawn data, is enough to test whether the field earns its space.</li>
+</ul>
+</section>
+</main>
+
+<script>
+(function(){
+  var CHECK='<svg aria-hidden="true" width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.5l2.6 2.6L10 3.5"></path></svg>';
+  var ICON_MAP='<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="5.5"></circle><circle cx="7" cy="7" r="2.2"></circle></svg>';
+  var ICON_LINES='<svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 4h9M2.5 7h9M2.5 10h9"></path></svg>';
+  var START='The yellow boar segment is held for the still frame. Press a kill button to run the timing.';
+
+  var tracker=document.getElementById('tracker');
+  var statusEl=document.getElementById('status');
+  var holdIn=document.getElementById('hold'), fadeIn=document.getElementById('fade');
+  var holdOut=document.getElementById('hold-out'), fadeOut=document.getElementById('fade-out');
+  var btnMap=document.getElementById('view-map'), btnLines=document.getElementById('view-lines');
+  var timers=[], view='map', state=null;
+  var turninEl, blocksEl, nearbyEl, heldSeg=null, heldObj=null, objNight, objBoar, objSpider;
+
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+  function later(fn,ms){timers.push(setTimeout(fn,ms));}
+  function say(t){statusEl.textContent=t;}
+  function holdMs(){return Math.round(parseFloat(holdIn.value)*1000);}
+  function fadeS(){return Math.round(parseFloat(fadeIn.value)*10)/10;}
+
+  function fresh(){
+    return {
+      turnin:['#4fbf5a','#e6c84a'],
+      blocks:[{title:'The Balance of Nature',diff:'#e6c84a',objs:[
+        {name:'Young Nightsaber',have:6,need:7},
+        {name:'Young Thistle Boar',have:2,need:4,held:1}
+      ]}],
+      pending:[
+        {key:'spider',shape:'tri',name:'Webwood Spider',quest:'Webwood Venom',diff:'#4fbf5a',need:5,
+         map:[[174,116],[183,116],[192,116],[9,114],[18,114]],line:[22,28,34,45,51]},
+        {key:'warrior',shape:'sq',name:'Gnarlpine Warrior',
+         map:[[174,127],[9,125],[18,125],[27,125]],line:[28,43,49,55]},
+        {key:'owl',shape:'circ',name:'Strigid Owl',
+         map:[[161,166],[171,166],[121,2]],line:[26,32,56]}
+      ]
+    };
+  }
+
+  function squares(colors){
+    var d=el('div','sqs');
+    colors.forEach(function(c){var i=el('i');i.style.background=c;d.appendChild(i);});
+    return d;
+  }
+
+  function renderTurnin(){
+    turninEl.textContent='';
+    var w=el('span');w.style.display='flex';w.innerHTML=CHECK;
+    turninEl.appendChild(w);
+    turninEl.appendChild(el('span',null,'Dolanaar'));
+    var s=squares(state.turnin);
+    s.setAttribute('role','img');
+    s.setAttribute('aria-label',state.turnin.length+' completed quests to turn in');
+    turninEl.appendChild(s);
+  }
+
+  function addBlock(b){
+    b.el=el('div','quest');
+    b.el.appendChild(el('div','qtitle',b.title));
+    b.objs.forEach(function(o){
+      o.block=b;
+      o.row=el('div','row');
+      o.row.appendChild(el('span',null,o.name));
+      var bar=el('div','segs');o.segs=[];
+      for(var i=0;i<o.need;i++){var s=el('div','seg'+(i<o.have?' done':''));bar.appendChild(s);o.segs.push(s);}
+      o.row.appendChild(bar);
+      o.countEl=el('span','count',o.have+'/'+o.need);
+      o.row.appendChild(o.countEl);
+      b.el.appendChild(o.row);
+      if(o.held!=null){heldObj=o;heldSeg=o.segs[o.held];heldSeg.className='seg recent';}
+    });
+    blocksEl.appendChild(b.el);
+  }
+
+  function tabButton(label,icon,pressed,v){
+    var b=el('button');b.type='button';
+    b.setAttribute('aria-label',label);
+    b.setAttribute('aria-pressed',pressed?'true':'false');
+    b.innerHTML=icon;
+    b.addEventListener('click',function(){setView(v);});
+    return b;
+  }
+
+  function renderNearby(){
+    nearbyEl.textContent='';
+    var tabs=el('div','tabs');
+    tabs.appendChild(tabButton('Map view',ICON_MAP,view==='map','map'));
+    tabs.appendChild(tabButton('Line view',ICON_LINES,view==='lines','lines'));
+    nearbyEl.appendChild(tabs);
+    if(!state.pending.length){nearbyEl.appendChild(el('div','none','No other work nearby'));return;}
+    if(view==='map'){
+      var f=el('div','map');
+      f.setAttribute('role','img');
+      f.setAttribute('aria-label','Map of nearby work: '+state.pending.map(function(p){return p.map.length+' '+p.name;}).join(', '));
+      f.appendChild(el('div','ring-o'));f.appendChild(el('div','ring-i'));
+      state.pending.forEach(function(p){
+        p.map.forEach(function(xy){var s=el('i','shape '+p.shape);s.style.left=xy[0]+'px';s.style.top=xy[1]+'px';f.appendChild(s);});
+      });
+      nearbyEl.appendChild(f);
+      var key=el('div','key');
+      state.pending.forEach(function(p){
+        var r=el('div','keyrow');r.appendChild(el('i','shape '+p.shape));r.appendChild(el('span',null,p.name));key.appendChild(r);
+      });
+      nearbyEl.appendChild(key);
+    }else{
+      var list=el('div','lines');
+      state.pending.forEach(function(p){
+        var r=el('div','lrow');
+        r.appendChild(el('i','shape '+p.shape));
+        r.appendChild(el('span','lname',p.name));
+        var sp=el('div','spark');
+        sp.setAttribute('role','img');
+        sp.setAttribute('aria-label',p.line.length+' units by distance');
+        p.line.forEach(function(x){var m=el('i');m.style.left=x+'px';sp.appendChild(m);});
+        r.appendChild(sp);
+        list.appendChild(r);
+      });
+      nearbyEl.appendChild(list);
+    }
+  }
+
+  function setView(v){
+    view=v;
+    btnMap.setAttribute('aria-pressed',v==='map'?'true':'false');
+    btnLines.setAttribute('aria-pressed',v==='lines'?'true':'false');
+    renderNearby();
+  }
+
+  function build(){
+    timers.forEach(clearTimeout);timers=[];
+    heldSeg=null;heldObj=null;objSpider=null;
+    state=fresh();
+    tracker.textContent='';
+    turninEl=el('div','placeline');tracker.appendChild(turninEl);renderTurnin();
+    blocksEl=el('div','blocks');tracker.appendChild(blocksEl);
+    state.blocks.forEach(addBlock);
+    objNight=state.blocks[0].objs[0];objBoar=state.blocks[0].objs[1];
+    nearbyEl=el('div','nearby');tracker.appendChild(nearbyEl);renderNearby();
+    var other=el('div','placeline');
+    other.appendChild(el('span',null,'+6 in Ashenvale'));
+    var os=squares(['#a3aaa3','#a3aaa3','#f2f2ea','#f2f2ea','#e24b4a','#e24b4a']);
+    os.setAttribute('role','img');os.setAttribute('aria-label','Two low-level, two normal and two hard quests');
+    other.appendChild(os);
+    tracker.appendChild(other);
+    say(START);
+  }
+
+  function blockDone(b){return b.objs.every(function(x){return x.have>=x.need;});}
+
+  function collapse(b){
+    b.collapsed=true;
+    blocksEl.removeChild(b.el);
+    state.turnin.push(b.diff);
+    renderTurnin();
+    say(b.title+' is done. It left the block and added a square to the Dolanaar turn-in line.');
+  }
+
+  function fade(seg,o){
+    var f=fadeS();
+    seg.style.setProperty('--fade',f+'s');
+    seg.classList.remove('pop','recent');
+    seg.classList.add('fading','done');
+    if(o.have>=o.need){o.row.style.transitionDuration=f+'s';o.row.classList.add('complete');}
+    later(function(){
+      seg.classList.remove('fading');
+      var b=o.block;
+      if(!b.collapsed&&blockDone(b)&&!b.el.querySelector('.seg.recent')){collapse(b);}
+    },Math.round(f*1000)+40);
+  }
+
+  function kill(o,note){
+    if(o.block.collapsed){say(o.block.title+' is already waiting to be turned in. Press Reset to start again.');return;}
+    if(heldSeg){var hs=heldSeg,ho=heldObj;heldSeg=null;heldObj=null;later(function(){fade(hs,ho);},holdMs());}
+    if(o.have>=o.need){say(o.name+' is already '+o.have+'/'+o.need+'.');return;}
+    var seg=o.segs[o.have];
+    o.have+=1;
+    o.countEl.textContent=o.have+'/'+o.need;
+    seg.className='seg recent pop';
+    say((note||'')+o.name+' '+o.have+'/'+o.need+'. Yellow for '+(holdMs()/1000).toFixed(1)+' s, then a '+fadeS().toFixed(1)+' s fade.');
+    later(function(){fade(seg,o);},holdMs());
+  }
+
+  function killSpider(){
+    var note='';
+    if(!objSpider){
+      var idx=-1;
+      state.pending.forEach(function(p,i){if(p.key==='spider')idx=i;});
+      var p=state.pending.splice(idx,1)[0];
+      var b={title:p.quest,diff:p.diff,objs:[{name:p.name,have:0,need:p.need}]};
+      state.blocks.push(b);
+      addBlock(b);
+      objSpider=b.objs[0];
+      renderNearby();
+      note='First kill: it joined the block in the next slot and left the nearby view. ';
+    }
+    kill(objSpider,note);
+  }
+
+  document.getElementById('kill-0').addEventListener('click',function(){kill(objNight);});
+  document.getElementById('kill-1').addEventListener('click',function(){kill(objBoar);});
+  document.getElementById('kill-2').addEventListener('click',killSpider);
+  document.getElementById('reset').addEventListener('click',build);
+  btnMap.addEventListener('click',function(){setView('map');});
+  btnLines.addEventListener('click',function(){setView('lines');});
+  holdIn.addEventListener('input',function(){holdOut.textContent=parseFloat(holdIn.value).toFixed(1)+' s';});
+  fadeIn.addEventListener('input',function(){fadeOut.textContent=parseFloat(fadeIn.value).toFixed(1)+' s';});
+  build();
+})();
+</script>
+</body>
+</html>
