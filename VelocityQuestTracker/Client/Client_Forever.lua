@@ -25,6 +25,16 @@ function impl.OpenQuestLog(questID)
   return false
 end
 
+function impl.SetWatched(questID, watched)
+  if InCombatLockdown() then return false end
+  if watched then
+    if C_QuestLog.AddQuestWatch then return C_QuestLog.AddQuestWatch(questID, Enum.QuestWatchType and Enum.QuestWatchType.Manual) and true or false end
+  else
+    if C_QuestLog.RemoveQuestWatch then return C_QuestLog.RemoveQuestWatch(questID) and true or false end
+  end
+  return false
+end
+
 local function Objectives(questID)
   local out = {}
   local objs = C_QuestLog.GetQuestObjectives(questID) or {}

@@ -28,6 +28,16 @@ function impl.OpenQuestLog(questID)
   return false
 end
 
+-- Era: AddQuestWatch / RemoveQuestWatch take a quest-log INDEX.
+function impl.SetWatched(questID, watched)
+  if InCombatLockdown() then return false end
+  local index = GetQuestLogIndexByID and GetQuestLogIndexByID(questID)
+  if not index or index == 0 then return false end
+  if watched then if AddQuestWatch then AddQuestWatch(index); return true end
+  else if RemoveQuestWatch then RemoveQuestWatch(index); return true end end
+  return false
+end
+
 local function Objectives(logIndex, questID)
   local out = {}
   local rich = C_QuestLog and C_QuestLog.GetQuestObjectives and C_QuestLog.GetQuestObjectives(questID)

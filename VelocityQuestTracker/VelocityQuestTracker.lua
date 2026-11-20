@@ -16,6 +16,7 @@ local DEFAULT_SETTINGS = {
   FadeSeconds = 1,
   HideCompletedSegments = false,
   HideCompletedRows = false,
+  AutoUntrackInactive = true,
 }
 
 local function InitDB()
@@ -119,7 +120,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
       -- movement redraws the nearby spark lines; a full model rebuild is cheap and keeps one path
       NS.Position.OnMoved(function() Model.MarkDirty("moved") end)
     end)
-    Stage("Model", function() Model.Build() end)
+    Stage("Model", function() Model.Init(); Model.Build() end)
     Stage("Enabled", ApplyEnabled)
     Stage("Ticker", function() C_Timer.NewTicker(5, Model.Tick) end)
   elseif event == "PLAYER_REGEN_ENABLED" then

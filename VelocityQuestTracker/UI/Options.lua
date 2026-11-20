@@ -106,6 +106,7 @@ function Options.Create()
     function(v) return string.format("A quest stays in the block for %d s after you act on it", v) end), 44, -10)
   blk:Add(Check(blk, "HideCompletedSegments", "Hide completed segments", "Done units are not drawn; the bar shows only what is left."), 26, -10)
   blk:Add(Check(blk, "HideCompletedRows", "Hide fully completed quest objectives", "An objective row leaves the block once its last unit has faded."), 26)
+  blk:Add(Check(blk, "AutoUntrackInactive", "Auto-untrack inactive quests", "Tracking a quest in the quest log makes it active here. Ticked: when a quest ages out of the active block it is also untracked in the quest log, so tracked == active."), 26)
   blk:Finish()
 
   local tm = Section("Recent-progress timing")

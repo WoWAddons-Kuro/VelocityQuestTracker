@@ -36,6 +36,7 @@ Client.INTERFACE = {
   "StockTrackerFrame",  -- -> Frame|nil  the Blizzard quest tracker to hide
   "CurrentZoneName",    -- -> string      GetRealZoneText()
   "OpenQuestLog",       -- (questID)      open the game's quest log to this quest; no-op in combat
+  "SetWatched",         -- (questID, bool) set the stock "tracked" flag (the model keeps tracked == active)
 }
 
 -- Shared helpers for the flavour files ------------------------------------------------
