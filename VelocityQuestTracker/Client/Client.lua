@@ -35,6 +35,7 @@ Client.INTERFACE = {
   "Quests",             -- -> { VQT_Quest, ... } for the whole log
   "StockTrackerFrame",  -- -> Frame|nil  the Blizzard quest tracker to hide
   "CurrentZoneName",    -- -> string      GetRealZoneText()
+  "OpenQuestLog",       -- (questID)      open the game's quest log to this quest; no-op in combat
 }
 
 -- Shared helpers for the flavour files ------------------------------------------------

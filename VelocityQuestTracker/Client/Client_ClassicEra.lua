@@ -17,6 +17,17 @@ function impl.PlayerFirstName() return UnitName("player") end
 function impl.CurrentZoneName() return GetRealZoneText() or "" end
 function impl.StockTrackerFrame() return QuestWatchFrame end
 
+-- Era quest log is index-based: select the entry, then show the standalone log frame.
+function impl.OpenQuestLog(questID)
+  if InCombatLockdown() then return false end
+  local index = GetQuestLogIndexByID and GetQuestLogIndexByID(questID)
+  if not index or index == 0 then return false end
+  SelectQuestLogEntry(index)
+  local frame = QuestLogExFrame or ClassicQuestLog or QuestLogFrame
+  if frame then ShowUIPanel(frame); return true end
+  return false
+end
+
 local function Objectives(logIndex, questID)
   local out = {}
   local rich = C_QuestLog and C_QuestLog.GetQuestObjectives and C_QuestLog.GetQuestObjectives(questID)

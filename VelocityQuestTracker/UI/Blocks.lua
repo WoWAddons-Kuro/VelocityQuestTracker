@@ -167,6 +167,29 @@ local function RenderRow(block, idx, obj, quest, now)
 end
 
 -- Block widgets -----------------------------------------------------------------------
+-- True when a click/hover on the panel should be honoured: always, or only with Shift held when
+-- the "Require Shift key to interact with panel" setting is on.
+local function InteractionAllowed()
+  return not Settings().RequireShiftToInteract or IsShiftKeyDown()
+end
+
+local function OnTitleEnter(btn)
+  if not InteractionAllowed() then return end
+  T.SetColour(btn.text, T.Tone.Todo)
+  btn.hovered = true
+end
+
+local function OnTitleLeave(btn)
+  T.SetColour(btn.text, T.Tone.Label)
+  btn.hovered = false
+end
+
+local function OnTitleClick(btn)
+  if not InteractionAllowed() then return end
+  local ok = NS.Client.OpenQuestLog(btn.questID)
+  if not ok and InCombatLockdown() then Util.Print("cannot open the quest log in combat") end
+end
+
 local function AcquireBlock(questID)
   local b = blocksByQuest[questID]
   if b then return b end
@@ -175,8 +198,16 @@ local function AcquireBlock(questID)
   b.wash = b:CreateTexture(nil, "BACKGROUND")
   b.wash:SetAllPoints()
   T.SetColour(b.wash, T.Tone.Wash, T.WashAlpha)
-  b.title = T.Text(b, T.LabelSize, T.Tone.Label)
-  b.title:SetPoint("TOP", 0, -6); b.title:SetJustifyH("CENTER"); b.title:SetWidth(T.PanelWidth - 2 * T.PadX)
+  -- Title is a button: hover brightens it, click opens the quest log to this quest.
+  b.titleButton = CreateFrame("Button", nil, b)
+  b.titleButton:SetPoint("TOP", 0, -6); b.titleButton:SetSize(T.PanelWidth - 2 * T.PadX, T.LabelSize + 4)
+  b.titleButton.questID = questID
+  b.title = T.Text(b.titleButton, T.LabelSize, T.Tone.Label)
+  b.title:SetAllPoints(); b.title:SetJustifyH("CENTER")
+  b.titleButton.text = b.title
+  b.titleButton:SetScript("OnEnter", OnTitleEnter)
+  b.titleButton:SetScript("OnLeave", OnTitleLeave)
+  b.titleButton:SetScript("OnClick", OnTitleClick)
   b.rows = {}
   blocksByQuest[questID] = b
   blockOrder[#blockOrder + 1] = questID

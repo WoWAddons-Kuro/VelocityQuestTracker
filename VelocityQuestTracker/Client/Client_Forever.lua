@@ -18,6 +18,13 @@ function impl.PlayerFirstName() return UnitName("player") end
 function impl.CurrentZoneName() return GetRealZoneText() or "" end
 function impl.StockTrackerFrame() return ObjectiveTrackerFrame end
 
+-- Modern quest log (map frame) takes a quest ID. Opening it from addon code is protected in combat.
+function impl.OpenQuestLog(questID)
+  if InCombatLockdown() then return false end
+  if QuestMapFrame_OpenToQuestDetails then QuestMapFrame_OpenToQuestDetails(questID); return true end
+  return false
+end
+
 local function Objectives(questID)
   local out = {}
   local objs = C_QuestLog.GetQuestObjectives(questID) or {}

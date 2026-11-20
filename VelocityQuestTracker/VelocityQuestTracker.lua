@@ -10,6 +10,7 @@ local DB_VERSION = 1
 local DEFAULT_SETTINGS = {
   Enabled = true,
   LockPosition = true,
+  RequireShiftToInteract = false,
   ActiveWindowSeconds = 300,
   HoldSeconds = 4,
   FadeSeconds = 1,
@@ -71,7 +72,7 @@ local function Slash(msg)
     local ci = Util.ClientInfo()
     Util.Print("version %s | client %s %s (build %s, interface %s, project %s) | character %s | %s | %s | %s",
       tostring(version), Client.flavour, ci.Version, ci.Build, tostring(ci.Interface), tostring(ci.Project),
-      Client.PlayerDisplayName(), NS.db.settings.Enabled and "enabled" or "disabled", NS.StockTracker.Status(), NS.EditMode.Status())
+      Client.PlayerDisplayName(), NS.db.settings.Enabled and "enabled" or "disabled", NS.StockTracker.Status(), NS.EditMode.Status(), NS.Location.Status(), NS.Position.Status())
   else
     Util.Print("/vqt - toggle | options | status | dump | touch <id> | focus <ids|clear> | reset")
   end
@@ -111,6 +112,12 @@ f:SetScript("OnEvent", function(_, event, arg1)
     end)
     Stage("Events", function()
       for _, e in ipairs(QUEST_EVENTS) do pcall(f.RegisterEvent, f, e) end
+    end)
+    Stage("Location", function() NS.Location.Init() end)
+    Stage("Position", function()
+      NS.Position.Init()
+      -- movement redraws the nearby spark lines; a full model rebuild is cheap and keeps one path
+      NS.Position.OnMoved(function() Model.MarkDirty("moved") end)
     end)
     Stage("Model", function() Model.Build() end)
     Stage("Enabled", ApplyEnabled)

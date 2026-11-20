@@ -98,13 +98,14 @@ function Options.Create()
 
   -- The two headline checkboxes, directly under the intro.
   Place(Check(content, "Enabled", "Enable Velocity Quest Tracker", "Shows the panel and hides the game's own quest tracker. Untick to put the stock tracker back."), -14)
-  Place(Check(content, "LockPosition", "Lock position (edit with Edit Mode)", "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by its own frame."), 26)
+  Place(Check(content, "LockPosition", "Lock position (edit with Edit Mode)", "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by its own frame."), -4)
+  Place(Check(content, "RequireShiftToInteract", "Require Shift key to interact with panel", "Ticked: quest titles only highlight and open the quest log while Shift is held, so the panel never catches stray clicks."), -4)
 
   local blk = Section("Actionable block")
   blk:Add(Slider(blk, "VelocityQuestTrackerOptActive", "ActiveWindowSeconds", 300, 60, 900, 30,
     function(v) return string.format("A quest stays in the block for %d s after you act on it", v) end), 44, -10)
   blk:Add(Check(blk, "HideCompletedSegments", "Hide completed segments", "Done units are not drawn; the bar shows only what is left."), 26, -10)
-  blk:Add(Check(blk, "HideCompletedRows", "Hide fully completed rows", "An objective row leaves the block once its last unit has faded."), 26)
+  blk:Add(Check(blk, "HideCompletedRows", "Hide fully completed quest objectives", "An objective row leaves the block once its last unit has faded."), 26)
   blk:Finish()
 
   local tm = Section("Recent-progress timing")

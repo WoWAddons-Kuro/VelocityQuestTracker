@@ -17,8 +17,28 @@ local list
 local shapeByName = {}       -- objective name -> shape kind
 local shapesUsed = 0
 
--- fn(quest, objective) -> array of 0..1 fractions (one per unit owed), or nil for "unknown"
-Nearby.DistanceProvider = nil
+-- Spark-line scale: the left end is the player, the right end is VQT_Nearby_SparkRangeYards and
+-- beyond (SPEC: "units beyond band 3 sit at the right end"). Same yardage as three map bands.
+Nearby.SparkRangeYards = 600
+
+-- fn(quest, objective, owed) -> array of 0..1 fractions (one per unit owed), or nil for "unknown".
+-- Default: QuestieDB spawns via Location + Position. Each unit owed is placed at the distance of the
+-- n-th nearest spawn (units beyond the spawn count repeat the farthest), so five owed with two
+-- spawns near and one far reads as "mostly near".
+function Nearby.DistanceProvider(quest, objective, owed)
+  local Location, Position = NS.Location, NS.Position
+  if not (Location and Location.IsAvailable() and Position and Position.Current()) then return nil end
+  local spawns = Location.SpawnsForObjective(quest, objective)
+  if not spawns or #spawns == 0 then return nil end
+  local dists = Position.DistancesTo(spawns)
+  if #dists == 0 then return nil end
+  local out = {}
+  for u = 1, owed do
+    local d = dists[math.min(u, #dists)]
+    out[u] = math.min(1, d / Nearby.SparkRangeYards)
+  end
+  return out
+end
 
 local function ShapeFor(name)
   local s = shapeByName[name]
@@ -92,7 +112,7 @@ function Nearby.Render(snap)
         SetShape(row, ShapeFor(o.name))
         seenNames[o.name] = true
         row.name:SetText(o.name)
-        local fr = Nearby.DistanceProvider and Nearby.DistanceProvider(q, o)
+        local fr = Nearby.DistanceProvider and Nearby.DistanceProvider(q, o, owed)
         if not fr then fr = {}; for u = 1, owed do fr[u] = 0.5 end end
         SetMarks(row, fr)
         row:ClearAllPoints()

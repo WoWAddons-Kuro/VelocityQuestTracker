@@ -20,6 +20,7 @@ Client\Client_Forever.lua
 Client\Client_Select.lua
 
 Core\Location.lua
+Core\Position.lua
 Core\Model.lua
 
 UI\Theme.lua
