@@ -19,9 +19,25 @@ function impl.CurrentZoneName() return GetRealZoneText() or "" end
 function impl.StockTrackerFrame() return ObjectiveTrackerFrame end
 
 -- Modern quest log (map frame) takes a quest ID. Opening it from addon code is protected in combat.
+-- QuestMapFrame_OpenToQuestDetails lives in Blizzard_WorldMap, a LOAD-ON-DEMAND addon: it is nil until
+-- the player has opened the map/log once (pressing L loads it). Seen 2026-11-20: clicks did nothing
+-- until L had been pressed. Load it ourselves, then call; fall back to OpenQuestLog / ToggleQuestLog.
+local function EnsureMapUI()
+  if QuestMapFrame_OpenToQuestDetails then return true end
+  local load = (C_AddOns and C_AddOns.LoadAddOn) or LoadAddOn
+  if load then pcall(load, "Blizzard_WorldMap") end
+  if not QuestMapFrame_OpenToQuestDetails and UIParentLoadAddOn then pcall(UIParentLoadAddOn, "Blizzard_WorldMap") end
+  return QuestMapFrame_OpenToQuestDetails ~= nil
+end
+
 function impl.OpenQuestLog(questID)
   if InCombatLockdown() then return false end
-  if QuestMapFrame_OpenToQuestDetails then QuestMapFrame_OpenToQuestDetails(questID); return true end
+  if EnsureMapUI() then QuestMapFrame_OpenToQuestDetails(questID); return true end
+  -- Fallbacks: the generic openers also live in the map addon but are defined in Blizzard_WorldMap.lua,
+  -- which may be present when QuestMapFrame.lua's function is not.
+  if OpenQuestLog then OpenQuestLog(); return true end
+  if ToggleQuestLog then ToggleQuestLog(); return true end
+  NS.Util.WarnOnce("openquestlog", "quest log UI not available (Blizzard_WorldMap not loaded)")
   return false
 end
 
