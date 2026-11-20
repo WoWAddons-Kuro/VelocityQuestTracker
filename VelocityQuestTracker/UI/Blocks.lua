@@ -20,6 +20,11 @@ local function Settings() return NS.db and NS.db.settings or {} end
 
 -- Segment animation ---------------------------------------------------------------------
 -- seg.state: "todo" | "pop" | "hold" | "fade" | "done"; seg.t0 = phase start
+-- Pop (SPEC: "flashes white and swells, settles to yellow"): 0-60 % white -> pale, scale 1.15 x 3.4 ->
+-- 1.05 x 1.8; 60-100 % pale -> held yellow, scale -> 1. Hold is the faint yellow; fade goes to Done.
+local POP_SWELL_X, POP_SWELL_Y = 1.15, 3.4
+local POP_SETTLE_X, POP_SETTLE_Y = 1.05, 1.8
+
 local function SegColour(seg, now)
   local st = seg.state
   if st == "todo" then return T.Tone.Todo end
@@ -27,15 +32,27 @@ local function SegColour(seg, now)
   if st == "pop" then
     local t = Util.Clamp((now - seg.t0) / POP_SECONDS, 0, 1)
     if t < 0.6 then local r, g, b = Util.Lerp3(T.Tone.PopA, T.Tone.PopB, t / 0.6); return { r, g, b } end
-    local r, g, b = Util.Lerp3(T.Tone.PopB, T.Tone.Recent, (t - 0.6) / 0.4); return { r, g, b }
+    local r, g, b = Util.Lerp3(T.Tone.PopB, T.Tone.RecentSeg, (t - 0.6) / 0.4); return { r, g, b }
   end
-  if st == "hold" then return T.Tone.Recent end
+  if st == "hold" then return T.Tone.RecentSeg end
   if st == "fade" then
     local fadeS = Settings().FadeSeconds or 1
     local t = Util.Clamp((now - seg.t0) / fadeS, 0, 1)
-    local r, g, b = Util.Lerp3(T.Tone.Recent, T.Tone.Done, t); return { r, g, b }
+    local r, g, b = Util.Lerp3(T.Tone.RecentSeg, T.Tone.Done, t); return { r, g, b }
   end
   return T.Tone.Done
+end
+
+-- Scale multipliers (x, y) for the pop swell; 1, 1 outside the pop phase.
+local function SegScale(seg, now)
+  if seg.state ~= "pop" then return 1, 1 end
+  local t = Util.Clamp((now - seg.t0) / POP_SECONDS, 0, 1)
+  if t < 0.6 then
+    local k = t / 0.6
+    return POP_SWELL_X + (POP_SETTLE_X - POP_SWELL_X) * k, POP_SWELL_Y + (POP_SETTLE_Y - POP_SWELL_Y) * k
+  end
+  local k = (t - 0.6) / 0.4
+  return POP_SETTLE_X + (1 - POP_SETTLE_X) * k, POP_SETTLE_Y + (1 - POP_SETTLE_Y) * k
 end
 
 -- Advance a segment's phase. Returns true while still animating.
@@ -140,6 +157,16 @@ local function RenderRow(block, idx, obj, quest, now)
     local seg = row.segs[u]
     if seg and seg:IsShown() then
       T.SetColour(seg, SegColour(seg, now))
+      -- pop swell: grow around the segment's own centre so neighbours are not displaced
+      local sx, sy = SegScale(seg, now)
+      if sx ~= 1 or sy ~= 1 then
+        local w, h = seg.baseW or seg:GetWidth(), T.SegHeight
+        seg.baseW = w
+        seg:SetSize(w * sx, h * sy)
+        seg:SetDrawLayer("OVERLAY")
+      elseif seg.baseW then
+        seg:SetSize(seg.baseW, T.SegHeight); seg.baseW = nil; seg:SetDrawLayer("ARTWORK")
+      end
       if SegStep(seg, now) then animating = true end
     end
   end
