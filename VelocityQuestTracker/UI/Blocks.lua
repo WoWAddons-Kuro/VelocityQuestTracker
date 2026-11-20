@@ -206,12 +206,20 @@ local function OnTitleEnter(btn)
   if Settings().RequireShiftForHover and not IsShiftKeyDown() then return end
   T.SetColour(btn.text, T.Tone.Todo)
   btn.hovered = true
+  -- the title is a child button and swallows the block's OnEnter: forward the hover to the card
+  local b = btn:GetParent()
+  if b and b.quest then NS.HoverCard.ShowBlock(b, b.quest) end
 end
 
 local function OnTitleLeave(btn)
   T.SetColour(btn.text, T.Tone.Label)
   btn.hovered = false
+  NS.HoverCard.ScheduleHide()
 end
+
+-- Hover anywhere on the block body: same card (block mode) for this quest.
+local function OnBlockEnter(b) if b.quest then NS.HoverCard.ShowBlock(b, b.quest) end end
+local function OnBlockLeave() NS.HoverCard.ScheduleHide() end
 
 local function OnTitleClick(btn)
   if not InteractionAllowed() then return end
@@ -227,6 +235,12 @@ local function AcquireBlock(questID)
   b.wash = b:CreateTexture(nil, "BACKGROUND")
   b.wash:SetAllPoints()
   T.SetColour(b.wash, T.Tone.Wash, T.WashAlpha)
+  -- Hover: block body is mouse-enabled (the card needs an OnEnter); row.hover is the brighter wash
+  -- the shared card toggles while it is up, the same convention as the place / nearby lines.
+  b:EnableMouse(true)
+  b.hover = b:CreateTexture(nil, "BACKGROUND"); b.hover:SetAllPoints(); b.hover:SetDrawLayer("BACKGROUND", 1)
+  T.SetColour(b.hover, T.Tone.Wash, T.WashAlpha); b.hover:Hide()
+  b:SetScript("OnEnter", OnBlockEnter); b:SetScript("OnLeave", OnBlockLeave)
   -- Title is a button: hover brightens it, click opens the quest log to this quest.
   b.titleButton = CreateFrame("Button", nil, b)
   b.titleButton:SetPoint("TOP", 0, -6); b.titleButton:SetSize(T.PanelWidth - 2 * T.PadX, T.LabelSize + 4)
@@ -344,6 +358,8 @@ function Blocks.Render(snap)
     local b = blocksByQuest[qid]
     local q = present[qid]
     if q then
+      b.quest = q                                    -- the hover card reads this
+      if NS.HoverCard.IsShownFor(b) then NS.HoverCard.ShowBlock(b, q) end   -- live refresh under the cursor
       local h, anim
       -- A complete quest in turnin_card is a card at once: the final segment's hold/fade belongs to
       -- the row shape it just left, not to the card (waiting on it delayed the hand-in place ~5 s).
