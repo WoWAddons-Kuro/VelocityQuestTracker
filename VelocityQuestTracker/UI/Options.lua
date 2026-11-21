@@ -125,6 +125,8 @@ function Options.Create()
   blk:Add(CountRadio("completed", "completed counts", "\"1/4\" -- done over total."), 16, -4, 4)
   blk:Add(Slider(blk, "VelocityQuestTrackerOptActive", "ActiveWindowSeconds", 300, 60, 900, 30,
     function(v) return string.format("A quest stays in the block for %d s after you act on it", v) end), 44, -10)
+  blk:Add(Slider(blk, "VelocityQuestTrackerOptProximity", "ActiveProximityYards", 100, 0, 300, 10,
+    function(v) if v <= 0 then return "Being near the work does not make a quest active" end return string.format("A quest is active while a spawn of its unfinished work is within %d yd", v) end), 44, -10)
   blk:Add(Slider(blk, "VelocityQuestTrackerOptErrand", "ErrandGraceSeconds", 120, 0, 600, 15,
     function(v) return string.format("A quest that just became complete is shown as a hand-in card even out of zone for %d s", v) end), 44, -10)
   blk:Add(Check(blk, "HideCompletedSegments", "Hide completed segments", "Done units are not drawn; the bar shows only what is left."), 26, -10)

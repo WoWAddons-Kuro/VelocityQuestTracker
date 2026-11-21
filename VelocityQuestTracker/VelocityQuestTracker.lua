@@ -13,6 +13,7 @@ local DEFAULT_SETTINGS = {
   RequireShiftToInteract = false,
   RequireShiftForHover = false,
   ActiveWindowSeconds = 300,
+  ActiveProximityYards = 100,            -- a spawn of unfinished work within this range keeps the quest active; 0 = off
   ErrandGraceSeconds = 120,              -- a just-completed quest is a hand-in card even out of zone for this long
   HoldSeconds = 4,
   FadeSeconds = 1,

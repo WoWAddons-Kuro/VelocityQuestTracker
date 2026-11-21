@@ -216,6 +216,29 @@ local function Categorise(q, now, zone)
   return "other"
 end
 
+-- Proximity is activity (owner 2026-11-21: killing Harvest Watchers with the quest still sitting in
+-- "nearby", marker at the near end of the spark). Before this, active was TIME only -- a kill, accept,
+-- track or click -- so a quest you were standing in the middle of stayed a nearby line until the
+-- first count change, and dropped back after ActiveWindowSeconds while you were still there.
+-- Rule: an unfinished objective with a spawn within ActiveProximityYards of the player Touches the
+-- quest on every build (builds run on each >= 15 yd movement report), so it holds the block while
+-- you are among the work and ages out on the normal clock once you walk away. 0 = off.
+local function ProximityTouch(q, now)
+  local yards = Settings().ActiveProximityYards or 100
+  if yards <= 0 then return end
+  local Location, Position = NS.Location, NS.Position
+  if not (Location and Location.IsAvailable() and Position and Position.Current()) then return end
+  for _, o in ipairs(q.objectives) do
+    if o.have < o.need then
+      local spawns = Location.SpawnsForObjective(q, o)
+      if spawns and #spawns > 0 then
+        local d = Position.DistancesTo(spawns)[1]
+        if d and d <= yards then Touch(q.questID, now); return end
+      end
+    end
+  end
+end
+
 -- Build VQT_Model_Snapshot:
 --   { quests = { VQT_Quest + rank + category + recent }, byCategory = { turnin = {...}, active = {...}, nearby = {...}, other = {...} },
 --     turninPlaces = { { place, quests } ... }, otherZones = { { zone, quests } ... }, zone = string, now = number }
@@ -230,6 +253,7 @@ function Model.Build()
     if not focusSet or focusSet[q.questID] then
       q.rank = Rank(q.questID)
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
+      if not q.isComplete then ProximityTouch(q, now) end   -- standing among the work is activity
       if q.isComplete then q.turninPlace, q.turninZone = Model.PlaceFor(q) end   -- before Categorise: the card is in-zone only
       q.category = Categorise(q, now, zone)
       -- Tracked == active, the other direction: a quest that just left active (or the hand-in card)
