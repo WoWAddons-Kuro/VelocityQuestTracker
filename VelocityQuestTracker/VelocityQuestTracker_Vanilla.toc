@@ -8,6 +8,8 @@
 ## RequiredDeps: QuestieDB
 ## OptionalDeps: LibStub, LibEditMode
 ## X-Website: https://github.com/WoWAddons-Kuro/VelocityQuestTracker
+## X-Curse-Project-ID: 1820291
+## X-Dependency-ProjectID-questiedb: 1696795
 
 Libs\LibStub\LibStub.lua
 Libs\LibEditMode\embed.xml
