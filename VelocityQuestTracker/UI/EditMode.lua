@@ -175,7 +175,8 @@ end
 
 function EditMode.ApplyLock()
   local f = Panel.Frame()
-  if f then f:EnableMouse(not EditMode.IsPositionLocked()) end
+  -- the unlocked drag surface is interaction too: off in combat (Core\Interact re-calls this on the flip)
+  if f then f:EnableMouse(not EditMode.IsPositionLocked() and not NS.Interact.InCombat()) end
 end
 
 function EditMode.ResetPosition()

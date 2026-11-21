@@ -24,9 +24,9 @@ local BLOCK_ROW_H = 16
 local card
 local hideTimer
 
-local function Settings() return NS.db and NS.db.settings or {} end
-function HoverCard.HoverAllowed() return not Settings().RequireShiftForHover or IsShiftKeyDown() end
-local function ClickAllowed() return not Settings().RequireShiftToInteract or IsShiftKeyDown() end
+-- Both gates live in Core\Interact: Shift settings, and never in combat.
+function HoverCard.HoverAllowed() return NS.Interact.HoverAllowed() end
+local function ClickAllowed() return NS.Interact.ClickAllowed() end
 
 -- Timers ------------------------------------------------------------------------------------
 local function CancelHide() if hideTimer then hideTimer:Cancel(); hideTimer = nil end end
@@ -105,7 +105,7 @@ local function Acquire()
   if card then return card end
   card = CreateFrame("Frame", "VelocityQuestTrackerHoverCard", UIParent)
   card:SetFrameStrata("TOOLTIP")
-  card:EnableMouse(true)
+  NS.Interact.Register(card)
   card:SetScript("OnEnter", CancelHide)
   card:SetScript("OnLeave", HoverCard.ScheduleHide)
   card:SetScript("OnUpdate", Watchdog)

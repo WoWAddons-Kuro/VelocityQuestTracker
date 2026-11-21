@@ -64,7 +64,7 @@ local function AcquireLine(i)
   row = CreateFrame("Frame", nil, list)
   row:SetHeight(LINE_H)
   -- Hover: the shared card in block mode for the quest this objective belongs to (row.quest).
-  row:EnableMouse(true)
+  NS.Interact.Register(row)          -- mouse off in combat (Core\Interact)
   row.hover = row:CreateTexture(nil, "BACKGROUND")
   row.hover:SetPoint("TOPLEFT", -T.PadX, 2); row.hover:SetPoint("BOTTOMRIGHT", T.PadX, -2)
   T.SetColour(row.hover, T.Tone.Wash, T.WashAlpha * 2)
@@ -78,7 +78,7 @@ local function AcquireLine(i)
   -- rule still applies: a promoted quest whose work is elsewhere stays listed under its zone.
   row:SetScript("OnMouseUp", function(self, button)
     if button ~= "LeftButton" or not self.quest then return end
-    if Settings().RequireShiftToInteract and not IsShiftKeyDown() then return end
+    if not NS.Interact.ClickAllowed() then return end
     NS.HoverCard.HideNow()
     NS.Model.TouchQuest(self.quest.questID)
   end)

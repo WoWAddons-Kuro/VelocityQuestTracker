@@ -38,7 +38,7 @@ function Panel.SetNearbyView(view)
 end
 
 -- Tabs -------------------------------------------------------------------------------------
-local function HoverAllowed() return not Settings().RequireShiftForHover or IsShiftKeyDown() end
+local function HoverAllowed() return NS.Interact.HoverAllowed() end     -- Shift setting + not in combat
 
 local function BuildTabs()
   strip = CreateFrame("Frame", nil, frame)
@@ -51,6 +51,7 @@ local function BuildTabs()
   local x = T.PadX
   local function Tab(glyph, label, view)
     local b = CreateFrame("Button", nil, strip)
+    NS.Interact.Register(b)          -- mouse off in combat (Core\Interact)
     b:SetHeight(STRIP_H)
     b.bg = b:CreateTexture(nil, "BACKGROUND"); b.bg:SetAllPoints()
     b.text = T.Text(b, T.LabelSize, T.Tone.Label); b.text:SetPoint("LEFT", 6, 0); b.text:SetPoint("RIGHT", -6, 0); b.text:SetJustifyH("CENTER")
@@ -60,7 +61,7 @@ local function BuildTabs()
     x = x + b:GetWidth() + 2
     b.view = view
     b:SetScript("OnClick", function(self)
-      if Settings().RequireShiftToInteract and not IsShiftKeyDown() then return end
+      if not NS.Interact.ClickAllowed() then return end
       Panel.SetNearbyView(self.view)
     end)
     b:SetScript("OnEnter", function(self) if HoverAllowed() then T.SetColour(self.text, T.Tone.Todo) end end)

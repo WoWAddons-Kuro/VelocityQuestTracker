@@ -211,15 +211,12 @@ local function RenderRow(block, idx, obj, quest, now)
 end
 
 -- Block widgets -----------------------------------------------------------------------
--- True when a click/hover on the panel should be honoured: always, or only with Shift held when
--- the "Require Shift key to interact with panel" setting is on.
-local function InteractionAllowed()
-  return not Settings().RequireShiftToInteract or IsShiftKeyDown()
-end
+-- Click / hover gates live in Core\Interact (Shift settings + not in combat).
+local function InteractionAllowed() return NS.Interact.ClickAllowed() end
 
 local function OnTitleEnter(btn)
   -- hover feedback has its own gate ("Hold Shift for hover feedback"); clicks use InteractionAllowed
-  if Settings().RequireShiftForHover and not IsShiftKeyDown() then return end
+  if not NS.Interact.HoverAllowed() then return end
   T.SetColour(btn.text, T.Tone.Todo)
   btn.hovered = true
   -- the title is a child button and swallows the block's OnEnter: forward the hover to the card
@@ -271,13 +268,15 @@ local function AcquireBlock(questID)
   T.SetColour(b.wash, T.Tone.Wash, T.WashAlpha)
   -- Hover: block body is mouse-enabled (the card needs an OnEnter); row.hover is the brighter wash
   -- the shared card toggles while it is up, the same convention as the place / nearby lines.
-  b:EnableMouse(true)
+  -- Mouse is owned by Core\Interact (off in combat); the title button below is registered the same way.
+  NS.Interact.Register(b)
   b.hover = b:CreateTexture(nil, "BACKGROUND"); b.hover:SetAllPoints(); b.hover:SetDrawLayer("BACKGROUND", 1)
   T.SetColour(b.hover, T.Tone.Wash, T.WashAlpha); b.hover:Hide()
   b:SetScript("OnEnter", OnBlockEnter); b:SetScript("OnLeave", OnBlockLeave)
   b:SetScript("OnMouseUp", OnBlockMouseUp)
   -- Title is a button: hover brightens it, click opens the quest log to this quest.
   b.titleButton = CreateFrame("Button", nil, b)
+  NS.Interact.Register(b.titleButton)
   b.titleButton:SetPoint("TOP", 0, -6); b.titleButton:SetSize(T.PanelWidth - 2 * T.PadX, T.LabelSize + 4)
   b.titleButton.questID = questID
   b.title = T.Text(b.titleButton, T.LabelSize, T.Tone.Label)

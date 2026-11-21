@@ -33,7 +33,7 @@ local function AcquireLine(list, i)
   if row then return row end
   row = CreateFrame("Frame", nil, list)
   row:SetHeight(LINE_H); row:SetPoint("LEFT", T.PadX, 0); row:SetPoint("RIGHT", -T.PadX, 0)
-  row:EnableMouse(true)
+  NS.Interact.Register(row)          -- mouse off in combat (Core\Interact)
   -- hover wash: the block wash tone, a touch stronger, full line width, hidden at rest (no chrome)
   row.hover = row:CreateTexture(nil, "BACKGROUND")
   row.hover:SetPoint("TOPLEFT", -T.PadX, 2); row.hover:SetPoint("BOTTOMRIGHT", T.PadX, -2)

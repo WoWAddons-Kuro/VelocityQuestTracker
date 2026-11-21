@@ -16,6 +16,7 @@ Libs\LibEditMode\embed.xml
 Libs\LibZoneBrightness\LibZoneBrightness-1.0.lua
 
 Core\Util.lua
+Core\Interact.lua
 
 Client\Client.lua
 Client\Client_ClassicEra.lua

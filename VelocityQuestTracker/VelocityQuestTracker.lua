@@ -122,7 +122,7 @@ local function Slash(msg)
     local ci = Util.ClientInfo()
     Util.Print("version %s | client %s %s (build %s, interface %s, project %s) | character %s | %s | %s | %s",
       tostring(version), Client.flavour, ci.Version, ci.Build, tostring(ci.Interface), tostring(ci.Project),
-      Client.PlayerDisplayName(), NS.db.settings.Enabled and "enabled" or "disabled", NS.StockTracker.Status(), NS.EditMode.Status(), NS.Location.Status(), NS.Position.Status())
+      Client.PlayerDisplayName(), NS.db.settings.Enabled and "enabled" or "disabled", NS.StockTracker.Status(), NS.EditMode.Status(), NS.Location.Status(), NS.Position.Status(), NS.Interact.Status())
   else
     Util.Print("/vqt - toggle | options | status | dump | touch <id> | focus <ids|clear> | reset")
   end
@@ -139,6 +139,7 @@ local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("PLAYER_REGEN_ENABLED")
+f:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 local function Stage(name, fn)
   local ok, err = pcall(fn)
@@ -180,8 +181,11 @@ f:SetScript("OnEvent", function(_, event, arg1)
     end)
     Stage("Ticker", function() C_Timer.NewTicker(5, Model.Tick) end)
   elseif event == "PLAYER_REGEN_ENABLED" then
+    NS.Interact.SetInCombat(false)
     NS.StockTracker.OnLeaveCombat()
     NS.ItemButtons.OnLeaveCombat()
+  elseif event == "PLAYER_REGEN_DISABLED" then
+    NS.Interact.SetInCombat(true)        -- panel is not interactive in combat
   else
     Model.MarkDirty(event)
   end
