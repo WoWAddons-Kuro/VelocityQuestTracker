@@ -94,7 +94,8 @@ local function Create()
   nextIndex = nextIndex + 1
   local btn = CreateFrame("Button", "VelocityQuestTrackerItemButton" .. nextIndex, UIParent, "SecureActionButtonTemplate")
   btn:SetSize(SIZE_PX, SIZE_PX)
-  btn:SetFrameStrata("MEDIUM")
+  btn:SetFrameStrata("TOOLTIP")      -- above the hover card (also TOOLTIP, created earlier -> lower level); a clickable item must never sit under a passive card
+  btn:SetFrameLevel(50)
   btn:Hide()
   btn.icon = btn:CreateTexture(nil, "ARTWORK"); btn.icon:SetAllPoints(); btn.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
   btn.border = btn:CreateTexture(nil, "BORDER"); btn.border:SetPoint("TOPLEFT", -1, 1); btn.border:SetPoint("BOTTOMRIGHT", 1, -1)
