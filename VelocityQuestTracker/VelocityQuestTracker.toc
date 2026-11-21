@@ -2,7 +2,7 @@
 ## Title: Velocity Quest Tracker
 ## Notes: A quest tracker that shows the state of your work and leaves the decisions to you. Remaining work is bright, done work recedes, nothing moves without cause.
 ## Author: Kuro
-## Version: v2026.11.20.2246
+## Version: @project-version@
 ## SavedVariables: VelocityQuestTrackerDB
 ## SavedVariablesPerCharacter: VelocityQuestTrackerCharDB
 ## RequiredDeps: QuestieDB
