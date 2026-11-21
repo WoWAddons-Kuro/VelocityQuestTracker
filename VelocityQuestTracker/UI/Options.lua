@@ -140,6 +140,7 @@ function Options.Create()
   tm:Finish()
 
   local nb = Section("Nearby work")
+  nb:Add(Check(nb, "ExperimentalMapMode", "Experimental map mode", "Adds a Map view of nearby work (compass field with one mark per mob type per direction) and the Map | Range switcher that appears above the panel on hover. Off: the Range list only."), 26, -10)
   nb:Add(Check(nb, "LinearSparkScale", "Linear distance scale on the spark lines", "Unticked (default): square-root scale, so the near half of the line covers the near quarter of the range and close differences get the pixels. Ticked: plain distance / range."), 26, -10)
   nb:Finish()
 

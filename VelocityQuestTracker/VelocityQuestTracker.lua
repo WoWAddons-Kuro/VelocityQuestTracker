@@ -21,6 +21,7 @@ local DEFAULT_SETTINGS = {
   AutoUntrackInactive = true,
   LinearSparkScale = false,
   ObjectiveCountMode = "remaining",     -- "remaining" | "completed"  (Options: "Show objectives as")
+  ExperimentalMapMode = false,          -- map view + Map|Range strip; off = Range list only
 }
 
 local function InitDB()
@@ -61,7 +62,8 @@ local function Slash(msg)
   elseif cmd == "options" or cmd == "config" or cmd == "settings" then NS.Options.Open()
   elseif cmd == "dump" then Model.Dump()
   elseif cmd == "view" then
-    if rest == "map" or rest == "range" then NS.Panel.SetNearbyView(rest) end
+    if rest == "map" and not NS.Panel.MapModeEnabled() then Util.Print("map view is off: tick \"Experimental map mode\" in /vqt options")
+    elseif rest == "map" or rest == "range" then NS.Panel.SetNearbyView(rest) end
     Util.Print("nearby view: %s  (range %d yd)", NS.Panel.NearbyView(), NS.Position.NearbyRangeYards())
   elseif cmd == "probe" then
     -- Raw client API for one quest, unfiltered: what the game says vs what our adapter derived.

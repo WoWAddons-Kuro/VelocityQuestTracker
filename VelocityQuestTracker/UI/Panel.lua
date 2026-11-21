@@ -21,10 +21,14 @@ local STRIP_GAP = 4           -- between strip bottom and panel top
 local function Settings() return NS.db and NS.db.settings or {} end
 
 -- VQT_NearbyView = "map" | "range". "range" is the spark-line list (markers by distance); it was
--- called "lines" until 2026-11-20 and old saved values are read as "range".
+-- called "lines" until 2026-11-20 and old saved values are read as "range". The map view and the
+-- strip that switches to it are behind the "Experimental map mode" setting (default off): with it
+-- off the view is always "range" and the strip never appears, whatever is saved per character.
+function Panel.MapModeEnabled() return Settings().ExperimentalMapMode == true end
+
 function Panel.NearbyView()
   local v = NS.chardb and NS.chardb.nearbyView
-  if v == "map" then return "map" end
+  if v == "map" and Panel.MapModeEnabled() then return "map" end
   return "range"
 end
 
@@ -128,7 +132,7 @@ local function OnUpdate()
   -- (This USED to be a HookScript("OnUpdate") installed BEFORE SetScript("OnUpdate", OnUpdate), which
   -- replaced it -- the hook never ran and the strip/strip never appeared. Owner 2026-11-20.)
   if not strip then return end
-  local over = HoverAllowed() and (frame:IsMouseOver(STRIP_H + STRIP_GAP, 0, 0, 0) or strip:IsMouseOver())
+  local over = Panel.MapModeEnabled() and HoverAllowed() and (frame:IsMouseOver(STRIP_H + STRIP_GAP, 0, 0, 0) or strip:IsMouseOver())
   if over and not strip:IsShown() then Panel.RefreshTabs(); strip:Show()
   elseif not over and strip:IsShown() then strip:Hide() end
 end
