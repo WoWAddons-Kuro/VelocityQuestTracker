@@ -155,14 +155,14 @@ local function FillSegments(r, have, need)
   local perRow = T.SegPerRow
   local rows = math.max(1, math.ceil(need / perRow))
   local cols = math.min(need, perRow)
-  local segW = (T.BarWidth - (cols - 1) * T.SegGap) / cols
+  local segW = (T.BarWidth - (cols - 1) * T.SegGapFor(cols)) / cols
   for u = 1, need do
     local s = r.segs[u]
     if not s then s = r.bar:CreateTexture(nil, "ARTWORK"); r.segs[u] = s end
     local rr = math.floor((u - 1) / perRow)
     local cc = (u - 1) % perRow
     s:ClearAllPoints(); s:SetSize(segW, T.SegHeight)
-    s:SetPoint("TOPLEFT", r.bar, "TOPLEFT", cc * (segW + T.SegGap), -rr * (T.SegHeight + T.SegGap))
+    s:SetPoint("TOPLEFT", r.bar, "TOPLEFT", cc * (segW + T.SegGapFor(cols)), -rr * (T.SegHeight + T.SegGap))
     T.SetColour(s, u <= have and T.Tone.Done or T.Tone.Todo)
     s:Show()
   end

@@ -16,6 +16,9 @@ T.RowGap     = 5
 T.RowHeight  = 16
 T.SegHeight  = 4
 T.SegGap     = 2
+-- Horizontal gap between segments for a row of `cols` bricks: 12 % of the brick width, never under
+-- SegGap. Wide bricks (few units) get a visible gap; 10-per-row bricks keep 2 px.
+function T.SegGapFor(cols) return math.max(T.SegGap, math.floor(T.BarWidth / math.max(1, cols) * 0.12 + 0.5)) end
 T.SegPerRow  = 10      -- segments per segment row; more units wrap to further rows
 T.BarWidth   = 56
 T.CountWidth = 28

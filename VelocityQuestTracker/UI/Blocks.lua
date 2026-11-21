@@ -102,7 +102,10 @@ local function LayoutSegments(row, need, hideDone, have)
   local rows = math.max(1, math.ceil(n / perRow))
   local cols = math.min(n, perRow)
   if cols < 1 then cols = 1 end
-  local segW = (T.BarWidth - (cols - 1) * T.SegGap) / cols
+  -- Gap scales with segment width: a 2 px gap between 3 x 18 px bricks reads as one bar (owner
+  -- 2026-11-21). Wide bricks get a wider gap, 10-per-row bricks keep the 2 px minimum.
+  local gap = math.max(T.SegGap, math.floor(T.BarWidth / cols * 0.12 + 0.5))
+  local segW = (T.BarWidth - (cols - 1) * gap) / cols
   -- every segment that exists gets its resting size and the resting layer, shown or not
   for u = 1, need do
     local seg = row.segs[u]
@@ -120,7 +123,7 @@ local function LayoutSegments(row, need, hideDone, have)
     local r = math.floor((i - 1) / perRow)
     local c = (i - 1) % perRow
     seg:ClearAllPoints()
-    seg:SetPoint("TOPLEFT", row.bar, "TOPLEFT", c * (segW + T.SegGap), -r * (T.SegHeight + T.SegGap))
+    seg:SetPoint("TOPLEFT", row.bar, "TOPLEFT", c * (segW + gap), -r * (T.SegHeight + T.SegGap))
     seg:Show()
   end
   for u = need + 1, #row.segs do if row.segs[u] then row.segs[u]:Hide() end end
