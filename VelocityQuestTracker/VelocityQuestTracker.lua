@@ -22,6 +22,7 @@ local DEFAULT_SETTINGS = {
   LinearSparkScale = false,
   ObjectiveCountMode = "remaining",     -- "remaining" | "completed"  (Options: "Show objectives as")
   ExperimentalMapMode = false,          -- map view + Map|Range strip; off = Range list only
+  OrderNearbyByProximity = true,        -- nearby rows closest-first (nearest spawn); off = quest-log order
 }
 
 local function InitDB()

@@ -116,16 +116,55 @@ function Nearby.Attach(parent)
   return list
 end
 
+-- Row order. Default ("Order nearby by proximity", on): objectives sorted by the distance to their
+-- NEAREST spawn, closest first, so the top of the list is what you can do from here. Off: quest-log
+-- order. The sort key is the same distance the spark line's first marker shows, so the two agree.
+-- Objectives with no location data sort last (math.huge) in their log order.
+--
+-- Stability: rows are re-sorted only when the model rebuilds (quest/objective set change, zone change)
+-- or on a movement report (>= 15 yd, Position.OnMoved) -- never per frame -- and ties keep log order,
+-- so a row does not jitter while two objectives are equidistant.
+local function OrderedObjectives(snap)
+  local items = {}
+  local Location, Position = NS.Location, NS.Position
+  local canMeasure = Location and Location.IsAvailable() and Position and Position.Current()
+  local n = 0
+  for _, q in ipairs(snap.byCategory.nearby) do
+    for _, o in ipairs(q.objectives) do
+      local owed = o.need - o.have
+      if owed > 0 then
+        n = n + 1
+        local d = math.huge
+        if canMeasure then
+          local spawns = Location.SpawnsForObjective(q, o)
+          if spawns and #spawns > 0 then
+            local dists = Position.DistancesTo(spawns)
+            if dists[1] then d = dists[1] end
+          end
+        end
+        items[n] = { quest = q, obj = o, owed = owed, dist = d, logOrder = n }
+      end
+    end
+  end
+  if Settings().OrderNearbyByProximity ~= false then
+    table.sort(items, function(a, b)
+      if a.dist ~= b.dist then return a.dist < b.dist end
+      return a.logOrder < b.logOrder
+    end)
+  end
+  return items
+end
+
 function Nearby.Render(snap)
   local y = 0
   local i = 0
   local seenNames = {}
   -- range is per objective SET, so it is stable while walking (see Position.UpdateNearbyRange)
   if NS.Position and NS.Position.UpdateNearbyRange then NS.Position.UpdateNearbyRange(snap) end
-  for _, q in ipairs(snap.byCategory.nearby) do
-    for _, o in ipairs(q.objectives) do
-      local owed = o.need - o.have
-      if owed > 0 then
+  for _, it in ipairs(OrderedObjectives(snap)) do
+    local q, o, owed = it.quest, it.obj, it.owed
+    do
+      do
         i = i + 1
         local row = AcquireLine(i)
         row.quest = q
