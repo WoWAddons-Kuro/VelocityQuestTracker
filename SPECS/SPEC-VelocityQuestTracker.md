@@ -17,7 +17,7 @@
 
 Velocity Quest Tracker is a standalone World of Warcraft addon for Classic Era and Forever that replaces the stock quest tracker. It shows the state of the player's quest work and leaves every decision to the player: what is owed, how much, where it can be done, and where it is handed in.
 
-It is built for a glance during play. Nothing is drawn at rest except the information itself, remaining work is the brightest thing on screen, and rows do not move unless something entered or left.
+It is built for a glance during play. Nothing is drawn at rest except the information itself, remaining work is the brightest thing on screen, and rows do not move without a reason the player can see.
 
 It is a sibling of Velocity Split Tracker and does not depend on it. It requires the QuestieDB addon for location data.
 
@@ -25,7 +25,7 @@ It is a sibling of Velocity Split Tracker and does not depend on it. It requires
 
 1. **Show state, never instructions.** No route, no "best next", no suggested direction, no auto-selected target.
 2. **Attention goes to what is left.** Remaining work is bright. Finished work recedes.
-3. **Nothing shifts without cause.** A row keeps its slot. A new entry takes the next slot. Nothing re-sorts on progress.
+3. **Minimise movement not caused by player action.** Things do not shift around without a reason the player can see. A kill does not re-sort the block; a new entry takes the next slot. The player walking IS a reason: nearby work is kept in distance order because that is the question that view answers (playtest decision 2026-11-20, see Part 3).
 4. **No chrome at rest.** No frame, header or buttons until hover.
 5. **Name the thing in the world.** Mob and objective names are shown in full. Quest names are labels and never carry emphasis.
 6. **Everything is derived.** The display is computed from the quest log, the player position and the location data. There is no plan or step pointer.
@@ -145,6 +145,10 @@ end
 #### Line view
 
 One line per source type: shape, full name (truncated with an ellipsis, never wrapped), and a 60 px line with one 4 px marker per unit owed, placed by distance from the player in any direction. The left end is the player. Units beyond band 3 sit at the right end.
+
+**Order.** Rows are sorted closest first, by the distance to each objective's nearest spawn -- the same distance the first marker shows -- so the top of the list is what can be done from here. Objectives with no location data sort last. Re-sorted only on a model rebuild or a movement report (not per frame); ties keep quest-log order. Setting **Order nearby by proximity** (default on); off = quest-log order.
+
+*Playtest decision (2026-11-20).* The first draft of principle 3 said "nothing re-sorts". In play, a nearby list that does not follow the player's distance is a list you have to read twice. Keeping it in distance order simply makes more sense: the player moving is a reason the player can see, and the view's whole purpose is "what is near me". The principle was reworded to "minimise movement not caused by player action" to say what was actually meant.
 
 #### View tabs
 
@@ -291,5 +295,5 @@ The tracker exposes an optional focus input: a set of quest IDs supplied by anot
 - **Tracker picks where each objective is done** (planned marks plus alternative marks). It breaks down when objectives share locations, and it issues an instruction. A shape per source type lets the player make the call.
 - **Field that rotates with the player's facing.** More literal left and right, but every mark moves on every turn.
 - **Wide elliptical field, or an east-west strip.** Smaller, but distorts or drops north and south. The square field with a true circle was preferred.
-- **Ordering by most recent progress.** It reorders on kills. The yellow segment already shows recency.
+- **Ordering by most recent progress.** It reorders on kills, which is not the player moving. The yellow segment already shows recency. (Ordering by *distance* was adopted for nearby work; see Part 3.)
 - **Promotion by proximity as the default.** It fills the block with objectives the player is only passing. It remains available as a setting.
