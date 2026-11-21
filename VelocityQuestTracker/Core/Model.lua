@@ -307,7 +307,9 @@ function Model.Tick()
   end
 end
 
--- Dev helper: force a quest active (e.g. /vqt touch <id>)
+-- Promote a quest to active for one activity window. A player gesture (left-click on a nearby row,
+-- or /vqt touch <id>) and the same Touch a kill / loot / track uses, so it ages out on the same clock.
+-- Honours the in-zone rule through Categorise: an out-of-zone quest stays under its zone line.
 function Model.TouchQuest(questID) Touch(questID, GetTime()); Model.MarkDirty("touch") end
 
 -- Dismiss: the player clicked a hand-in card's body. End its active window now so the next build

@@ -71,6 +71,17 @@ local function AcquireLine(i)
   row.hover:Hide()
   row:SetScript("OnEnter", function(self) if self.quest then NS.HoverCard.ShowBlock(self, self.quest) end end)
   row:SetScript("OnLeave", function() NS.HoverCard.ScheduleHide() end)
+  -- Left-click a nearby row: PROMOTE its quest to active for one activity window (owner 2026-11-20:
+  -- the quest item button lives beside the active block, so a quest you need to act on now must be
+  -- bring-able into the block without walking to its zone or waiting for a kill). The quest is
+  -- Touched -- the same mechanism a kill or tracking uses -- so it ages out normally. The in-zone
+  -- rule still applies: a promoted quest whose work is elsewhere stays listed under its zone.
+  row:SetScript("OnMouseUp", function(self, button)
+    if button ~= "LeftButton" or not self.quest then return end
+    if Settings().RequireShiftToInteract and not IsShiftKeyDown() then return end
+    NS.HoverCard.HideNow()
+    NS.Model.TouchQuest(self.quest.questID)
+  end)
   row.shapeHolder = CreateFrame("Frame", nil, row); row.shapeHolder:SetSize(10, LINE_H); row.shapeHolder:SetPoint("LEFT", 0, 0)
   row.name = T.Text(row, T.LabelSize, T.Tone.Near)
   row.name:SetPoint("LEFT", row.shapeHolder, "RIGHT", T.ColGap, 0)
