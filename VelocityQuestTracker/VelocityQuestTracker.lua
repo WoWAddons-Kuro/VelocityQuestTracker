@@ -14,6 +14,7 @@ local DEFAULT_SETTINGS = {
   RequireShiftForHover = false,
   ActiveWindowSeconds = 300,
   ActiveProximityYards = 100,            -- a spawn of unfinished work within this range keeps the quest active; 0 = off
+  HandInArriveYards = 25,                -- a hand-in card holds its yellow while the turn-in NPC is within this; 0 = off
   ErrandGraceSeconds = 120,              -- a just-completed quest is a hand-in card even out of zone for this long
   HoldSeconds = 4,
   FadeSeconds = 1,

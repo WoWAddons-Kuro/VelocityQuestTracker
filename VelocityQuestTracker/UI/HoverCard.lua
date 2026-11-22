@@ -51,11 +51,15 @@ function HoverCard.ScheduleHide()
 end
 
 -- Quest title actions --------------------------------------------------------------------------
+-- Left-click opens the quest log. Right-click toggles tracked. SHIFT-left-click TRACKS (owner
+-- 2026-11-22): the flyout is where you decide "I want this one in the block", and tracked == active.
+-- Shift-click on a block title in the panel is the reverse (dismiss), so the gesture is symmetric.
 local function OnTitleClick(self, button)
   if not ClickAllowed() or not self.questID then return end
-  if button == "RightButton" then
+  local shiftTrack = button == "LeftButton" and IsShiftKeyDown()
+  if button == "RightButton" or shiftTrack then
     local q = self.quest
-    local want = not (q and q.isWatched)
+    local want = shiftTrack and true or not (q and q.isWatched)
     if NS.Client.SetWatched(self.questID, want) then
       if q then q.isWatched = want end
       NS.Model.MarkDirty("toggle-watch")

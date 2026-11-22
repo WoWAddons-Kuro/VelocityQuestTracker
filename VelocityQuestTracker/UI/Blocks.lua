@@ -254,6 +254,16 @@ end
 
 local function OnTitleClick(btn)
   if not InteractionAllowed() then return end
+  -- Shift-click the title of ANY block (active or hand-in card): dismiss it out of the block area
+  -- (owner 2026-11-22). Activity is cleared and the quest untracked, so it falls to its line until
+  -- a kill / loot / re-track / proximity touches it again. Plain click still opens the quest log.
+  if IsShiftKeyDown() then
+    local b = btn:GetParent()
+    if b then b.departing = true end
+    NS.HoverCard.HideNow()
+    NS.Model.DismissQuest(btn.questID)
+    return
+  end
   local ok = NS.Client.OpenQuestLog(btn.questID)
   if not ok and InCombatLockdown() then Util.Print("cannot open the quest log in combat") end
 end
@@ -336,7 +346,9 @@ end
 -- marker sat 9 % in at 5 yd -- visibly off the edge while standing on the NPC (owner 2026-11-21).
 -- Anything beyond the range pins to the right end.
 local HANDIN_SPARK_RANGE_YARDS = 300
-local HANDIN_ARRIVE_YARDS = 5          -- within this the card holds the arrival highlight
+-- Arrival radius: setting HandInArriveYards (Options slider 0..50, default 25; 0 = off). 5 was too tight
+-- against approximate spawn coordinates (owner 2026-11-22). The model registers Position watch points at it.
+function Blocks.HandInArriveYards() local v = Settings().HandInArriveYards; if v == nil then return 25 end return v end
 local function HandInDistance(quest)
   local Position = NS.Position
   if not (quest.turninSpawn and Position and Position.Current()) then return nil end
@@ -453,8 +465,9 @@ local function RenderHandInCard(b, quest, now)
   -- Arrival (owner 2026-11-21): standing at the finisher (within HANDIN_ARRIVE_YARDS) holds the card
   -- at the dim yellow for as long as you are there -- "you are here, hand it in". Position reports on
   -- >= 15 yd moves, so the rebuild that brings you inside 5 yd is the one that lights it.
-  local arrived = dist ~= nil and dist <= HANDIN_ARRIVE_YARDS
-  if arrived and sinceDone >= hold then washC, washA = T.Tone.Recent, HOLD_A * 0.6 end
+  -- Half the hold alpha (owner 2026-11-22: full HOLD_A was too loud for a state you sit in).
+  local arrived = dist ~= nil and dist <= Blocks.HandInArriveYards() and Blocks.HandInArriveYards() > 0
+  if arrived and sinceDone >= hold then washC, washA = T.Tone.Recent, HOLD_A * 0.5 end
   T.SetColour(b.wash, washC, washA)
   -- card title = [check] text, centred as one unit; the stock centred title is blanked for the card
   -- shape (RenderBlock re-sets its text, so a block reverting from a card gets it back)

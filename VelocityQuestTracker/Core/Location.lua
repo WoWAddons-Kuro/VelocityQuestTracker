@@ -99,6 +99,30 @@ function Location.PlaceNameForArea(areaID)
   return Location.ZoneNameForArea(areaID)
 end
 
+-- Is this quest-log header the name of a ZONE (Dun Morogh) or a SORT (Cooking, Fishing, Shaman)?
+-- The log files profession / class quests under the sort name, and the model must never treat that
+-- as a place (owner 2026-11-22: "+1 in Fishing"). Set of localised zone names built lazily from the
+-- QuestieDB area table, so it matches exactly what ZoneNameForArea produces.
+local zoneNameSet = nil
+function Location.IsZoneName(name)
+  if not name or not available then return false end
+  if not zoneNameSet then
+    zoneNameSet = {}
+    for areaID in pairs(areaIdToUiMapId) do
+      local n = Location.ZoneNameForArea(areaID)
+      if n then zoneNameSet[n] = true end
+    end
+  end
+  return zoneNameSet[name] == true
+end
+
+-- QuestieDB's own zone for a quest (zoneOrSort > 0 = AreaId), as a zone name; nil for a sort or unknown.
+function Location.QuestZoneName(questID)
+  if not available or not QuestDB.Exists(questID) then return nil end
+  local areaID = QuestDB.zoneOrSort and QuestDB.zoneOrSort(questID)
+  if type(areaID) == "number" and areaID > 0 then return Location.ZoneNameForArea(areaID) end
+  return nil
+end
 -- Spawns -------------------------------------------------------------------------------
 local vec = CreateVector2D and CreateVector2D(0, 0)
 
@@ -261,7 +285,10 @@ function Location.WorkZonesForQuest(quest)
 end
 
 -- Turn-in --------------------------------------------------------------------------
--- Returns { source = VQT_Source, spawn = VQT_SpawnYards } or nil. Forever quest POIs first (M3).
+-- Returns { source = VQT_Source, spawn = VQT_SpawnYards, spawns = { VQT_SpawnYards... } } or nil.
+-- `spawn` is the first entry (the display place); `spawns` is every coordinate of the finisher, so a
+-- distance check can take the NEAREST (owner 2026-11-22: Gubber Blump measured 300+ yd from on top
+-- of him -- spawns[1] was not the one he stands at).
 function Location.FinisherFor(questID)
   local c = finisherCache[questID]
   if c ~= nil then return c or nil end
@@ -273,7 +300,7 @@ function Location.FinisherFor(questID)
     elseif fb and fb[2] and fb[2][1] then src = { kind = "object", id = fb[2][1], name = ObjectDB.name(fb[2][1]) } end
     if src then
       local spawns = Location.SpawnsFor(src)
-      found = { source = src, spawn = spawns[1] }
+      found = { source = src, spawn = spawns[1], spawns = spawns }
     end
   end
   finisherCache[questID] = found

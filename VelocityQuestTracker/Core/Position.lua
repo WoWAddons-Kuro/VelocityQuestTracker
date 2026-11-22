@@ -38,6 +38,29 @@ local function Sample()
   return { x = world.x, y = world.y, instanceID = instanceID, uiMapID = uiMapID }
 end
 
+-- Fine-grained watch points (owner 2026-11-22). The 15 yd report step is right for the spark lines
+-- but wrong for ARRIVAL: walk back to a hand-in NPC by a path under 15 yd and no report fires, so the
+-- card never re-lights. Consumers register the world points they care about (hand-in spawns); a tick
+-- that CROSSES a watch radius around any of them -- in either direction -- is reported regardless of
+-- the step. Set wholesale per model build (Position.SetWatchPoints), so it tracks the live cards.
+local watchPoints = {}              -- { { x, y, instanceID, radius } ... }
+local watchInside = {}              -- index -> bool  (inside the radius at the last tick)
+function Position.SetWatchPoints(points) watchPoints = points or {}; wipe(watchInside) end
+
+local function CrossedWatch(p)
+  local crossed = false
+  for i, w in ipairs(watchPoints) do
+    local inside = false
+    if w.instanceID == p.instanceID then
+      local dx, dy = w.x - p.x, w.y - p.y
+      inside = (dx * dx + dy * dy) <= w.radius * w.radius
+    end
+    if watchInside[i] ~= nil and watchInside[i] ~= inside then crossed = true end
+    watchInside[i] = inside
+  end
+  return crossed
+end
+
 local function Tick()
   local p = Sample()
   current = p
@@ -47,6 +70,7 @@ local function Tick()
     local dx, dy = p.x - lastReported.x, p.y - lastReported.y
     moved = (dx * dx + dy * dy) >= REPORT_STEP_YARDS * REPORT_STEP_YARDS
   end
+  if CrossedWatch(p) then moved = true end
   if moved then
     lastReported = p
     for _, fn in ipairs(listeners) do

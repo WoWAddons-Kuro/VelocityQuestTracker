@@ -106,6 +106,18 @@ end
 
 local function Touch(questID, now) lastActivityAt[questID] = now end
 
+-- True when any unit of this quest landed within the active window (recentUnits stamps from
+-- DiffCounts). The only kind of activity a diffuse-work quest may take the block for.
+function Model.HasRecentUnits(questID, now)
+  local window = Settings().ActiveWindowSeconds or 300
+  local objs = recentUnits[questID]
+  if not objs then return false end
+  for _, units in pairs(objs) do
+    for _, at in pairs(units) do if (now - at) < window then return true end end
+  end
+  return false
+end
+
 -- Compare snapshot counts to the last build. Returns changes = { { questID, objIndex, from, to }, ... }
 local function DiffCounts(quests, now)
   local changes = {}
@@ -157,17 +169,52 @@ function Model.PlaceFor(q)
   if Location and Location.IsAvailable and Location.IsAvailable() then
     local f = Location.FinisherFor(q.questID)
     if f and f.spawn then
+      -- distance spawn = the NEAREST of the finisher's coordinates (not spawns[1]); Gubber Blump 10216
+      -- has several and [1] was 300+ yd from where he stands (owner 2026-11-22)
+      local nearest, best = f.spawn, math.huge
+      local Position = NS.Position
+      if Position and Position.Current() and f.spawns then
+        for _, s in ipairs(f.spawns) do
+          local d = Position.DistanceTo(s)
+          if d and d < best then best, nearest = d, s end
+        end
+      end
       return Location.PlaceNameForArea(f.spawn.areaID) or q.zoneName, Location.ZoneNameForArea(f.spawn.areaID) or q.zoneName,
-        f.source and f.source.name or nil, f.spawn
+        f.source and f.source.name or nil, nearest
     end
   end
-  return q.zoneName, q.zoneName, nil, nil
+  -- no finisher data: the header zone, unless the header is a sort (Cooking / Fishing / Shaman)
+  local z = Model.HeaderZoneOrNil(q)
+  return z, z, nil, nil
 end
 
 -- Zone names where a quest's REMAINING work is (QuestieDB spawn zones of unfinished objectives).
 -- Falls back to { q.zoneName } (the quest-log header) when QuestieDB does not know the quest.
 -- "Humble Beginnings" is accepted in Stormwind, filed under Stormwind in the log, but its compass is
 -- in Westfall: with QuestieDB it is a Westfall quest here.
+--
+-- Diffuse work (owner 2026-11-22, Auberdine): "Thelsamar Blood Sausages" wants boar / bear / spider
+-- drops, which fall from those mob families in ELEVEN zones, so spawn attribution made it an in-zone
+-- quest everywhere, and a spider near the dock kept proximity-touching it into the active block.
+-- Rule: the quest IS in zone (its items do drop here -- the nearby lines with range are useful), but
+-- being near a spawn means nothing for a quest that spawns everywhere, so q.diffuseWork marks it and
+-- ProximityTouch skips it. Kills, tracking and a click still promote it. The zone list is kept.
+local MAX_SPECIFIC_WORK_ZONES = 3
+
+-- The quest-log header is a ZONE for most quests but a SORT for profession / class quests ("Cooking",
+-- "Fishing", "Shaman"). The sort stays the LABEL (the "+1 in Fishing" line is right as a category),
+-- but it is not a PLACE: Gaffer Jacks could never be in-zone, so it never got a card (owner
+-- 2026-11-22). Place for a sort-filed quest = QuestieDB's spawns (WorkZonesFor), then QuestieDB's
+-- own zoneOrSort, then -- last -- the header, so the quest still groups somewhere when nothing knows.
+function Model.HeaderZoneOrNil(q)
+  local Location = NS.Location
+  if not (Location and Location.IsAvailable and Location.IsAvailable()) then return q.zoneName end
+  if Location.IsZoneName(q.zoneName) then return q.zoneName end
+  q.headerIsSort = true
+  return Location.QuestZoneName(q.questID) or q.zoneName
+end
+local HeaderZoneOrNil = Model.HeaderZoneOrNil
+
 function Model.WorkZonesFor(q)
   local Location = NS.Location
   local names = {}
@@ -177,8 +224,9 @@ function Model.WorkZonesFor(q)
       if name then names[#names + 1] = name end
     end
     table.sort(names)
+    q.diffuseWork = #names > MAX_SPECIFIC_WORK_ZONES
   end
-  if #names == 0 and q.zoneName then names[1] = q.zoneName end
+  if #names == 0 then local z = HeaderZoneOrNil(q); if z then names[1] = z end end
   return names
 end
 
@@ -215,7 +263,10 @@ local function Categorise(q, now, zone)
     if lastCategory[q.questID] == "turnin_card" or lastCategory[q.questID] == "other_card" then turninArrivedAt[q.questID] = now end
     return "turnin"
   end
-  if recentlyActive and inZone then return "active" end
+  -- A diffuse-work quest (see WorkZonesFor) never takes a block on the strength of being here: it is
+  -- "here" in a dozen zones. Only a COUNT change (a drop landed) earns it the block, via the recent
+  -- unit stamp; a reload Touch on its tracked flag, or a click, lists it nearby with its items instead.
+  if recentlyActive and inZone and (not q.diffuseWork or q.hasRecentUnits) then return "active" end
   if recentlyActive and inGrace then return "other_card" end
   if inZone then return "nearby" end
   return "other"
@@ -231,6 +282,7 @@ end
 local function ProximityTouch(q, now)
   local yards = Settings().ActiveProximityYards or 100
   if yards <= 0 then return end
+  if q.diffuseWork then return end          -- spawns everywhere: nearness proves nothing (see WorkZonesFor)
   local Location, Position = NS.Location, NS.Position
   if not (Location and Location.IsAvailable() and Position and Position.Current()) then return end
   for _, o in ipairs(q.objectives) do
@@ -259,6 +311,9 @@ function Model.Build()
       q.rank = Rank(q.questID)
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
       if not q.isComplete then ProximityTouch(q, now) end   -- standing among the work is activity
+      -- a drop landed within the active window (DiffCounts stamps recentUnits): the one form of
+      -- activity a diffuse-work quest is allowed to take the block for
+      q.hasRecentUnits = Model.HasRecentUnits(q.questID, now)
       if q.isComplete then q.turninPlace, q.turninZone, q.turninName, q.turninSpawn = Model.PlaceFor(q) end   -- before Categorise: the card is in-zone only
       q.category = Categorise(q, now, zone)
       -- Tracked == active, the other direction: a quest that just left active (or the hand-in card)
@@ -309,6 +364,19 @@ function Model.Build()
   table.sort(otherAll, function(a, b) return a.rank < b.rank end)
   Group(otherAll, OtherZoneKey, snap.otherZones, "zone")
   for _, g in ipairs(snap.otherZones) do g.cards = {}; for _, q in ipairs(g.quests) do if q.category == "other_card" then g.cards[#g.cards + 1] = q end end end
+
+  -- Arrival watch (owner 2026-11-22): every in-zone hand-in card's finisher spawn is a Position watch
+  -- point, so crossing its radius -- in or out -- forces a rebuild even on a sub-15 yd move. Without
+  -- it, walking back to the NPC by a short path never re-lit the card.
+  if NS.Position and NS.Position.SetWatchPoints then
+    local pts = {}
+    local r = (NS.Blocks and NS.Blocks.HandInArriveYards and NS.Blocks.HandInArriveYards()) or 25
+    for _, q in ipairs(snap.byCategory.turnin_card) do
+      local s = q.turninSpawn
+      if s then pts[#pts + 1] = { x = s.x, y = s.y, instanceID = s.instanceID, radius = r } end
+    end
+    NS.Position.SetWatchPoints(pts)
+  end
 
   current = snap
   SaveState()
