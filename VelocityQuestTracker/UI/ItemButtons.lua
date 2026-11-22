@@ -102,7 +102,9 @@ local function OnLeave() GameTooltip:Hide() end
 local function Layer()
   if layer then return layer end
   layer = CreateFrame("Frame", "VelocityQuestTrackerItemButtonLayer", UIParent)
-  layer:SetFrameStrata("TOOLTIP")
+  -- MEDIUM, same strata as the hover card; buttons are level 50 so they sit ABOVE the card (level 20)
+  -- when the two overlap, but a toplevel window (bags) clicked on top still covers them.
+  layer:SetFrameStrata("MEDIUM")
   layer:SetSize(T.PanelWidth, 1)
   layer:EnableMouse(false)
   return layer

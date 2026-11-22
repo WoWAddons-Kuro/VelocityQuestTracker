@@ -40,7 +40,7 @@ local function BuildField(parent)
   field:SetSize(FIELD_PX, FIELD_PX)
   field.bg = field:CreateTexture(nil, "BACKGROUND")
   field.bg:SetAllPoints()
-  field.bg:SetColorTexture(0.13, 0.16, 0.14, 0.9)          -- #222923
+  T.SetColour(field.bg, T.Tone.Surface, 0.9)
   -- band-2 ring: outer disc minus inner disc, two circle masks of the field's own tone
   local half = FIELD_PX / 2
   local bandPx = half / 3

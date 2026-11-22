@@ -44,6 +44,10 @@ T.Base = {
   PopB   = Tone("#ffe89a"),
   Wash   = { 1, 1, 1 },       -- block wash colour; alpha below
   WashAlpha = 0.06,
+  -- Surface: the opaque backing behind the hover card and the map field. NEUTRAL dark grey, no hue.
+  -- The earlier #222923 (green channel highest) read as swamp-green beside the bag's brown and the
+  -- panel's white wash (owner 2026-11-22). Tinting a surface is for accents; backings stay neutral.
+  Surface = Tone("#1c1c1e"),
 }
 T.Tone = {}
 T.WashAlpha = T.Base.WashAlpha

@@ -34,6 +34,7 @@
 | Topic | Decision |
 |---|---|
 | Hover card | One shared card (`UI\HoverCard.lua`) beside the panel, side away from the nearer screen edge, 0.35 s grace, per-frame watchdog (OnLeave is not reliable). Place lines show a list (square + title per quest); nearby rows and active blocks show a block-style card: title, the quest's objectives text (`GetQuestLogQuestText` via select/read/restore), objective rows with static bars. |
+| Hover card strata | **MEDIUM, level 20 -- not TOOLTIP.** The card is a *reactive extension of the tracker*, not a tooltip: it is HUD, it peeks out of the panel, and the player did not ask for it. A tooltip is allowed to win over everything because it is small and dies on mouse-move; the card is panel-sized and can sit for a while, so it must lose to anything the player deliberately opened (bags, character pane, dialogs -- all MEDIUM toplevel or higher). At TOOLTIP it drew over an open KondoBags window (owner 2026-11-22, "wrong"); behind the bag it is just "the tracker is behind a window", same as the panel itself. Item buttons (below) share the strata at level 50 so they stay above the card. |
 | Card title clicks | Left = open quest log (Forever: loads `Blizzard_WorldMap` on demand, it is LOD and nil until L is pressed). Right = toggle tracked. |
 | Dismiss | Left-click on a hand-in card's BODY ends its active window -> turn-in line with the 2 s flash. The block is marked `departing` so the re-layout under the cursor cannot re-open the card. |
 | Hover strip | Hovering anywhere over the panel shows a one-row strip ABOVE it with the view toggle **Map | Range**. Replaces the SPEC's side tabs. Home for future view/option controls. |
@@ -54,6 +55,7 @@ attribute / parent / show changes queued out of combat. Reference implementation
 | Where | One `VQT_QuestItemButton` per quest with an item, on the **active block and the hand-in card** (complete quests use the item at the turn-in; honours `showWhenComplete`). Not on nearby rows in v1. |
 | Side | Beside the block, OUTSIDE the 250 px panel, on the side away from the nearer screen edge (same rule as the hover card), vertically centred on the title row. 24 px. |
 | Parent | `UIParent`, anchored to the block; never re-parented. Secure frames may not change parent / shown state in combat. |
+| Strata | `VQT_ItemButtonLayer` is **MEDIUM**; buttons at level 50, above the hover card (level 20) since a button can sit over the card's edge. Not TOOLTIP: the button follows the card's rule (HUD, loses to opened windows) -- see "Hover card strata". |
 | Combat | `VQT_ItemButtonQueue`: assignments and hides made in combat are applied on `PLAYER_REGEN_ENABLED`; a button keeps its last item and anchor until then. |
 | State | icon, charge count when > 1 (`GetItemCount(id, nil, true)`), cooldown sweep (`GetItemCooldown`), range dot red/grey (`IsItemInRange(id, "target")`, polled 0.3 s while a target exists; nil when the API refuses), GameTooltip on hover. |
 | Shift gate | NOT applied to the item button: the click must stay a pure secure hardware event. (If wanted later: `shift-type1` attribute, not Lua.) |

@@ -108,7 +108,13 @@ end
 local function Acquire()
   if card then return card end
   card = CreateFrame("Frame", "VelocityQuestTrackerHoverCard", UIParent)
-  card:SetFrameStrata("TOOLTIP")
+  -- MEDIUM level 20, deliberately NOT TOOLTIP. The card is a reactive EXTENSION OF THE TRACKER, not a
+  -- tooltip: it is HUD that peeks out of the panel, the player did not ask for it, and it is panel-sized
+  -- and may sit for a while. A tooltip may win over everything because it is small and dies on
+  -- mouse-move; this must lose to anything the player deliberately opened (bags, character pane,
+  -- dialogs are MEDIUM toplevel or higher). At TOOLTIP it drew over an open bag window (owner
+  -- 2026-11-22). Must still clear the LOW panel. ItemButtons share the strata at level 50, above this.
+  card:SetFrameStrata("MEDIUM"); card:SetFrameLevel(20)
   NS.Interact.Register(card)
   card:SetScript("OnEnter", CancelHide)
   card:SetScript("OnLeave", HoverCard.ScheduleHide)
@@ -117,7 +123,7 @@ local function Acquire()
   card:Hide()
   card.bg = card:CreateTexture(nil, "BACKGROUND")
   card.bg:SetAllPoints()
-  card.bg:SetColorTexture(0.13, 0.16, 0.14, 0.94)
+  T.SetColour(card.bg, T.Tone.Surface, 0.94)
   card.listRows = {}
   card.blockRows = {}
   return card
