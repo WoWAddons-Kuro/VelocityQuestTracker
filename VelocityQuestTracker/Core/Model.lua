@@ -203,7 +203,11 @@ local function Categorise(q, now, zone)
   local inGrace = stamp and (now - stamp) < grace
   if q.isComplete then
     local handInZone = q.turninZone
-    if recentlyActive and (handInZone == nil or handInZone == zone) then return "turnin_card" end
+    local handInHere = handInZone == nil or handInZone == zone
+    -- A TRACKED complete quest whose hand-in is in this zone keeps its card for as long as it is
+    -- tracked (owner 2026-11-21): it is the next thing to do here, and ageing it onto the line also
+    -- auto-untracked it. Untracking it (or a dismiss click, which clears the watch) drops it to the line.
+    if handInHere and (recentlyActive or q.isWatched) then return "turnin_card" end
     if recentlyActive and inGrace then return "other_card" end
     -- Dropped from the card onto the line just now (previous build had it as a card): stamp the
     -- arrival so the view can flash its square. Quests that were already on the line at login, or
@@ -360,9 +364,11 @@ function Model.TouchQuest(questID) Touch(questID, GetTime()); Model.MarkDirty("t
 
 -- Dismiss: the player clicked a hand-in card's body. End its active window now so the next build
 -- drops it from the card onto the turn-in line (with the arrival flash). Clearing lastActivityAt is
--- enough: Categorise sees recentlyActive == false and lastCategory == "turnin_card".
+-- half of it; a TRACKED in-zone hand-in holds its card regardless, so the dismiss also untracks it
+-- (the stock log's checkbox clears too). Re-ticking it in the log brings the card back.
 function Model.DismissQuest(questID)
   lastActivityAt[questID] = nil
+  if Client.SetWatched(questID, false) then wasWatched[questID] = false end
   Model.MarkDirty("dismiss")
 end
 

@@ -330,12 +330,21 @@ end
 --                                                  place (second line, indented under the name)
 --   finisher unknown (no QuestieDB)      : check | place | difficulty square   (M1 row)
 -- The check is yellow (Recent) for the hold time after completion so the eye lands on "done, go here".
-local function HandInMarkerFraction(quest)
-  local Position, Nearby = NS.Position, NS.Nearby
-  if not (quest.turninSpawn and Position and Position.Current() and Nearby) then return nil end
-  local d = Position.DistanceTo(quest.turninSpawn)
+-- Distance in yards to the finisher (nil = unknown) and its spark fraction 0..1. The hand-in spark is
+-- LINEAR over HANDIN_SPARK_RANGE_YARDS, not the nearby lines' sqrt-over-range: that curve spreads a
+-- field of spawns, but a single target wants "left edge == here". With sqrt over a 600 yd range the
+-- marker sat 9 % in at 5 yd -- visibly off the edge while standing on the NPC (owner 2026-11-21).
+-- Anything beyond the range pins to the right end.
+local HANDIN_SPARK_RANGE_YARDS = 300
+local HANDIN_ARRIVE_YARDS = 5          -- within this the card holds the arrival highlight
+local function HandInDistance(quest)
+  local Position = NS.Position
+  if not (quest.turninSpawn and Position and Position.Current()) then return nil end
+  return Position.DistanceTo(quest.turninSpawn)
+end
+local function HandInMarkerFraction(d)
   if not d then return nil end
-  return Nearby.ScaleDistance(d, Position.NearbyRangeYards())
+  return math.min(1, d / HANDIN_SPARK_RANGE_YARDS)
 end
 
 local function RenderHandInCard(b, quest, now)
@@ -387,10 +396,12 @@ local function RenderHandInCard(b, quest, now)
   local zone = NS.Model.Current().zone
   local inZone = quest.turninZone ~= nil and quest.turninZone == zone
   local lines = 1
+  local dist = nil                                     -- yards to the finisher (in-zone shape only)
   if quest.turninName and inZone then
     h.place:SetText(quest.turninName)
     h.square:Hide(); h.sub:Hide()
-    local f = HandInMarkerFraction(quest)
+    dist = HandInDistance(quest)
+    local f = HandInMarkerFraction(dist)
     if f then
       T.SetColour(h.spark.base, T.Tone.Todo, 0.35); T.SetColour(h.spark.mark, T.Tone.Todo)
       h.spark.mark:ClearAllPoints(); h.spark.mark:SetPoint("LEFT", h.spark, "LEFT", math.floor(f * (T.SparkWidth - T.SparkMark) + 0.5), 0)
@@ -406,7 +417,10 @@ local function RenderHandInCard(b, quest, now)
     T.SetColour(h.square, T.DifficultyColour(quest.level)); h.square:Show()
     h.sub:Hide(); h.spark:Hide()
   end
-  -- check tone: yellow for the hold window after completion, then label tone
+  -- Tones: yellow (Recent) for the hold window after completion, then the MUTED done tone for every
+  -- part of the card -- check, title, NPC name, glyph, spark (owner 2026-11-21: a finished quest is
+  -- not work, it should not sit at Todo brightness next to the active blocks). A green check is the
+  -- one accent; it is tinted toward Label so it recedes too.
   local sinceDone = quest.lastActivityAt and (now - quest.lastActivityAt) or math.huge
   local hold = Settings().HoldSeconds or 4
   local fade = Settings().FadeSeconds or 1
@@ -414,33 +428,44 @@ local function RenderHandInCard(b, quest, now)
   if sinceDone < hold then c = T.Tone.Recent
   elseif sinceDone < hold + fade then local r, g, bb = Util.Lerp3(T.Tone.Recent, T.Tone.Label, (sinceDone - hold) / fade); c = { r, g, bb }
   else c = T.Tone.Label end
-  h.check:SetVertexColor(c[1], c[2], c[3])
-  -- Card flash (owner 2026-11-21): on completion the WHOLE card runs the segment pop -- white, pale,
-  -- then the held yellow -- through its wash only (no size change), fading back to the plain wash on
-  -- the same hold/fade clock as the check. Alpha rides well above the resting wash so the colour reads.
+  h.check:SetVertexColor(0.45, 0.75, 0.45)            -- muted green: done, not shouting
+  h.glyph:SetVertexColor(c[1], c[2], c[3])
+  -- Card flash (owner 2026-11-21): on completion the WHOLE card background goes medium-bright yellow
+  -- and settles back to the plain wash. Wash colour + alpha only; no size change. Audit 2026-11-21:
+  -- the first cut (peak 0.45 -> hold 0.25 of pale Recent over a 0.06 wash) was not noticed at all,
+  -- so: a 0.5 s white->yellow pop at 0.70, the hold at 0.45 solid yellow, then the FadeSeconds fade
+  -- to whatever the terrain wash is. Nothing else on the card is this bright, so it cannot be missed.
+  local CARD_POP = 0.5
+  local PEAK_A, HOLD_A = 0.70, 0.45
   local washC, washA = T.Tone.Wash, T.WashAlpha
-  if sinceDone < POP_SECONDS then
-    local t = sinceDone / POP_SECONDS
+  if sinceDone < CARD_POP then
+    local t = sinceDone / CARD_POP
     local r, g, bb
-    if t < 0.6 then r, g, bb = Util.Lerp3(T.Tone.PopA, T.Tone.PopB, t / 0.6) else r, g, bb = Util.Lerp3(T.Tone.PopB, T.Tone.Recent, (t - 0.6) / 0.4) end
-    washC, washA = { r, g, bb }, 0.45 - 0.20 * t
+    if t < 0.4 then r, g, bb = Util.Lerp3(T.Tone.PopA, T.Tone.PopB, t / 0.4) else r, g, bb = Util.Lerp3(T.Tone.PopB, T.Tone.Recent, (t - 0.4) / 0.6) end
+    washC, washA = { r, g, bb }, PEAK_A + (HOLD_A - PEAK_A) * t
   elseif sinceDone < hold then
-    washC, washA = T.Tone.Recent, 0.25
+    washC, washA = T.Tone.Recent, HOLD_A
   elseif sinceDone < hold + fade then
     local k = (sinceDone - hold) / fade
     local r, g, bb = Util.Lerp3(T.Tone.Recent, T.Tone.Wash, k)
-    washC, washA = { r, g, bb }, 0.25 + (T.WashAlpha - 0.25) * k
+    washC, washA = { r, g, bb }, HOLD_A + (T.WashAlpha - HOLD_A) * k
   end
+  -- Arrival (owner 2026-11-21): standing at the finisher (within HANDIN_ARRIVE_YARDS) holds the card
+  -- at the dim yellow for as long as you are there -- "you are here, hand it in". Position reports on
+  -- >= 15 yd moves, so the rebuild that brings you inside 5 yd is the one that lights it.
+  local arrived = dist ~= nil and dist <= HANDIN_ARRIVE_YARDS
+  if arrived and sinceDone >= hold then washC, washA = T.Tone.Recent, HOLD_A * 0.6 end
   T.SetColour(b.wash, washC, washA)
   -- card title = [check] text, centred as one unit; the stock centred title is blanked for the card
   -- shape (RenderBlock re-sets its text, so a block reverting from a card gets it back)
   h.titleText:SetText(quest.title)
-  T.SetColour(h.titleText, b.titleButton.hovered and T.Tone.Todo or T.Tone.Label)
+  T.SetColour(h.titleText, b.titleButton.hovered and T.Tone.Todo or c)
   h.titleGroup:SetWidth(12 + 6 + h.titleText:GetStringWidth())
   h.titleGroup:Show(); h.check:Show()
   b.title:SetText("")
   b.titleButton.text = h.titleText           -- hover brightening targets the visible text
-  T.SetColour(h.place, T.Tone.Todo)
+  T.SetColour(h.place, c)
+  T.SetColour(h.spark.base, c, 0.35); T.SetColour(h.spark.mark, c)
   local rowH = T.RowHeight + (lines - 1) * (T.RowHeight - 2)
   h:SetHeight(rowH)
   h:ClearAllPoints()
@@ -449,7 +474,7 @@ local function RenderHandInCard(b, quest, now)
   h:Show()
   local height = 6 + T.LabelSize + 4 + rowH + 6
   b:SetHeight(height)
-  return height, sinceDone < hold + fade
+  return height, sinceDone < hold + fade or arrived
 end
 
 -- Public ------------------------------------------------------------------------------
