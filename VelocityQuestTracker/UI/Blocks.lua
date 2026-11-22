@@ -491,11 +491,13 @@ end
 -- is the heading. Separate pool from the part-2 blocks so the same quest moving part 2 <-> part 4
 -- never fights over one frame. Returns height drawn.
 local otherPool = {}            -- questID -> block frame (parented to the caller's list)
-function Blocks.RenderOtherCards(parent, cards, now, y0)
+-- `live` is shared across the caller's zone groups: cards drawn for an earlier group must not be hidden
+-- by a later group's call (2026-11-22: the Loch Modan cards vanished, leaving their gap, as soon as
+-- the Dun Morogh group rendered). The caller finishes with Blocks.HideOtherCardsExcept(live).
+function Blocks.RenderOtherCards(parent, cards, now, y0, live)
   local y = y0
-  local live = {}
   for _, q in ipairs(cards) do
-    live[q.questID] = true
+    if live then live[q.questID] = true end
     local b = otherPool[q.questID]
     if not b then
       -- AcquireBlock parents to the part-2 container and registers in blockOrder; take it out again
@@ -510,9 +512,10 @@ function Blocks.RenderOtherCards(parent, cards, now, y0)
     b:ClearAllPoints(); b:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, -y); b:Show()
     y = y + h + 2
   end
-  for qid, b in pairs(otherPool) do if not live[qid] then b:Hide() end end
   return y - y0
 end
+
+function Blocks.HideOtherCardsExcept(live) for qid, b in pairs(otherPool) do if not live[qid] then b:Hide() end end end
 
 -- A quest leaving the other-card pool for the part-2 block must get a fresh frame there.
 function Blocks.ReleaseOtherCard(questID) local b = otherPool[questID]; if b then b:Hide(); otherPool[questID] = nil end end

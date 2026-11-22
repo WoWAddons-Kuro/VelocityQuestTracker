@@ -6,9 +6,16 @@
 -- AddonManagement\_EXTERNAL_APIS\wow_quest_item_buttons.md.
 --
 -- Secure-frame rules honoured here:
---   * parented to UIParent, only ANCHORED to a block (SetParent is protected in combat)
+--   * NEVER anchored to, or parented under, anything the panel lays out. A secure frame anchored to a
+--     block makes the block -- and through it the panel -- protected: every SetHeight / SetPoint /
+--     Show the panel did in combat was [Blocked] (1460 x SetHeight in one fight, owner 2026-11-22).
+--     Instead all buttons live on ONE secure overlay, VQT_ItemButtonLayer, parented to UIParent and
+--     sized/placed to mirror the panel rect; buttons are positioned INSIDE the layer at the block's
+--     offset within the panel. The panel is then an ordinary frame and animates freely in combat.
 --   * SetAttribute / Show / Hide / SetPoint on a secure frame are refused in combat, so every change goes
 --     through VQT_ItemButtonQueue and is applied on PLAYER_REGEN_ENABLED when InCombatLockdown()
+--     (the layer keeps its last out-of-combat geometry for the duration; the buttons stay clickable
+--     where they were)
 --   * a retired button has RegisterForClicks() cleared and attributes nil'd, so it cannot fire stale
 local ADDON_NAME, NS = ...
 local T, Util, Client = NS.Theme, NS.Util, NS.Client
@@ -20,6 +27,7 @@ local SIZE_PX = 24
 local GAP_PX = 6                 -- between panel edge and button
 local RANGE_POLL_SECONDS = 0.3
 
+local layer                      -- VQT_ItemButtonLayer: the secure overlay mirroring the panel rect
 local pool = {}                  -- free buttons
 local byQuest = {}               -- questID -> button (live)
 local queue = {}                 -- VQT_ItemButtonQueue: questID -> { itemID, anchor } | false (= hide)
@@ -89,12 +97,34 @@ end
 
 local function OnLeave() GameTooltip:Hide() end
 
+-- The overlay. One plain frame under UIParent, no children of the panel; sized and placed to the
+-- panel's rect out of combat (SyncLayer). It is the only thing the secure buttons are parented to.
+local function Layer()
+  if layer then return layer end
+  layer = CreateFrame("Frame", "VelocityQuestTrackerItemButtonLayer", UIParent)
+  layer:SetFrameStrata("TOOLTIP")
+  layer:SetSize(T.PanelWidth, 1)
+  layer:EnableMouse(false)
+  return layer
+end
+
+-- Mirror the panel's rect onto the layer (out of combat only -- the layer owns secure children,
+-- so its own geometry is protected in combat too). Idempotent; cheap.
+local function SyncLayer()
+  local panel = NS.Panel and NS.Panel.Frame()
+  if not panel or InCombatLockdown() then return false end
+  local L = Layer()
+  L:ClearAllPoints()
+  L:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", panel:GetLeft() or 0, panel:GetTop() or 0)
+  L:SetSize(math.max(1, panel:GetWidth() or T.PanelWidth), math.max(1, panel:GetHeight() or 1))
+  return true
+end
+
 local nextIndex = 0
 local function Create()
   nextIndex = nextIndex + 1
-  local btn = CreateFrame("Button", "VelocityQuestTrackerItemButton" .. nextIndex, UIParent, "SecureActionButtonTemplate")
+  local btn = CreateFrame("Button", "VelocityQuestTrackerItemButton" .. nextIndex, Layer(), "SecureActionButtonTemplate")
   btn:SetSize(SIZE_PX, SIZE_PX)
-  btn:SetFrameStrata("TOOLTIP")      -- above the hover card (also TOOLTIP, created earlier -> lower level); a clickable item must never sit under a passive card
   btn:SetFrameLevel(50)
   btn:Hide()
   btn.icon = btn:CreateTexture(nil, "ARTWORK"); btn.icon:SetAllPoints(); btn.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
@@ -140,18 +170,22 @@ local function Retire(btn)
   pool[#pool + 1] = btn
 end
 
--- Anchor beside a block on the side away from the nearer screen edge (hover-card rule), centred on
--- the title row. SetPoint on a secure frame is protected in combat; callers come through Apply.
+-- Place beside a block, on the side away from the nearer screen edge (hover-card rule), centred on
+-- the title row -- expressed in LAYER coordinates from the block's offset within the panel, so the
+-- button is never anchored to the block (see header). Out of combat only; callers come through Apply.
 local function Place(btn, anchor)
   local panel = NS.Panel and NS.Panel.Frame()
-  local ref = panel or anchor
-  local cx = ref:GetCenter()
+  if not panel then return end
+  SyncLayer()
+  local cx = panel:GetCenter()
   local openLeft = cx and cx >= (UIParent:GetWidth() or 0) / 2
-  local titleY = -(6 + T.LabelSize / 2 + 2)
+  -- block top relative to the panel top (negative = below), from screen coordinates
+  local blockTopOffset = ((anchor:GetTop() or 0) - (panel:GetTop() or 0))
+  local titleY = blockTopOffset - (6 + T.LabelSize / 2 + 2)       -- centre of the block's title row
   btn:ClearAllPoints()
-  if openLeft then btn:SetPoint("RIGHT", ref, "LEFT", -GAP_PX, 0)
-  else btn:SetPoint("LEFT", ref, "RIGHT", GAP_PX, 0) end
-  btn:SetPoint("TOP", anchor, "TOP", 0, titleY + SIZE_PX / 2)
+  local L = Layer()
+  if openLeft then btn:SetPoint("RIGHT", L, "TOPLEFT", -GAP_PX, titleY)
+  else btn:SetPoint("LEFT", L, "TOPRIGHT", GAP_PX, titleY) end
 end
 
 -- Apply one queued entry now (caller has checked combat).
@@ -190,13 +224,17 @@ function ItemButtons.Drop(questID)
   if InCombatLockdown() then queued = true else Flush() end
 end
 
--- Called by Blocks after a render: every live questID not in `keep` is dropped.
+-- Called by Blocks after a render: every live questID not in `keep` is dropped, and -- out of combat --
+-- the layer is re-synced to the panel rect and every live button re-placed, since the blocks above
+-- it may have moved. In combat nothing is touched: the buttons stay where they were.
 function ItemButtons.Reconcile(keep)
   for questID in pairs(byQuest) do if not keep[questID] then ItemButtons.Drop(questID) end end
   for questID, want in pairs(queue) do if want and not keep[questID] then queue[questID] = false end end
+  if InCombatLockdown() then queued = true; return end
+  SyncLayer()
 end
 
-function ItemButtons.OnLeaveCombat() if queued then Flush() end end
+function ItemButtons.OnLeaveCombat() if queued then Flush() end; if NS.Model then NS.Model.MarkDirty("combat-end") end end
 
 function ItemButtons.Status()
   local n = 0; for _ in pairs(byQuest) do n = n + 1 end
