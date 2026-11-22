@@ -309,15 +309,36 @@ function Model.Build()
   SaveState()
   for _, fn in ipairs(listeners) do
     local ok, err = pcall(fn, snap, changes)
-    if not ok then Util.WarnOnce("listener:" .. tostring(err), err) end
+    if not ok then Util.Raise("model listener (panel render)", err) end
   end
   return snap
 end
 
-function Model.Current() return current or Model.Build() end
+-- Guarded build. Build used to run bare from a C_Timer callback: one error anywhere inside left
+-- \u0060current\u0060 at the previous snapshot and (Lua errors off by default) said nothing -- the panel sat on
+-- a log state from several quests ago while turn-ins, accepts and track toggles all "did nothing"
+-- (owner 2026-11-21, Dun Morogh: cards for two quests no longer in the log, none for two that were).
+-- Now: the error is printed every time, kept for /vqt status, and the next event retries.
+Model.lastError = nil
+Model.buildCount = 0
+local function SafeBuild()
+  local ok, res = pcall(Model.Build)
+  if ok then Model.buildCount = Model.buildCount + 1; return res end
+  Model.lastError = string.format("%s  (at %s)", tostring(res), date("%H:%M:%S"))
+  -- a real error (BugGrabber catches it), not a chat line; the panel stays on the last snapshot
+  Util.Raise("model rebuild failed, panel STALE until the next event succeeds", res)
+  return current
+end
+
+function Model.Current() return current or SafeBuild() end
 
 function Model.MarkDirty(reason)
-  Util.NextFrameOnce(dirtyState, "rebuild", Model.Build)
+  Util.NextFrameOnce(dirtyState, "rebuild", SafeBuild)
+end
+
+function Model.Status()
+  local age = current and string.format("%.0fs old", GetTime() - current.now) or "no snapshot"
+  return string.format("model: %d builds, snapshot %s%s", Model.buildCount, age, Model.lastError and ("  LAST ERROR: " .. Model.lastError) or "")
 end
 
 -- Timer-driven re-categorisation: a quest ages out of "active" with no event. Called by a ticker.

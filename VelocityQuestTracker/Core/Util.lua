@@ -26,6 +26,16 @@ function Util.WarnOnce(key, msg)
   Util.Print("|cffff4040warning|r " .. tostring(msg))
 end
 
+-- Report a caught error as a REAL Lua error, without unwinding the caller. Routes through the
+-- client's error handler, which is what BugGrabber / BugSack / the Blizzard error frame hook -- a
+-- chat line is not noticed, an exception is (owner 2026-11-21). Use after every pcall whose failure
+-- must not be swallowed; the caller then carries on with its own fallback.
+function Util.Raise(context, err)
+  local msg = string.format("VelocityQuestTracker: %s: %s", tostring(context), tostring(err))
+  local handler = geterrorhandler and geterrorhandler()
+  if handler then handler(msg) else error(msg, 0) end
+end
+
 -- "#rrggbb" -> r, g, b in 0..1
 function Util.HexToRGB(hex)
   hex = hex:gsub("#", "")

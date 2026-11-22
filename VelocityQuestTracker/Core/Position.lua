@@ -51,7 +51,7 @@ local function Tick()
     lastReported = p
     for _, fn in ipairs(listeners) do
       local ok, err = pcall(fn, p)
-      if not ok then Util.WarnOnce("position-listener", err) end
+      if not ok then Util.Raise("position listener", err) end
     end
   end
 end

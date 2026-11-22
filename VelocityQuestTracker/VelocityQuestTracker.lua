@@ -105,6 +105,26 @@ local function Slash(msg)
       end
     end
     Util.DumpFooter("/vqt probe " .. id)
+  elseif cmd == "rawlog" then
+    -- Every quest-log entry the client enumerates, PAST GetNumQuestLogEntries, with the flags the
+    -- adapter filters on. Diagnoses index-space / hidden-quest mismatches (2026-11-21: Forever listed
+    -- two hidden quests and dropped the last two of the header).
+    Util.DumpHeader("/vqt rawlog")
+    if C_QuestLog and C_QuestLog.GetInfo then
+      local shown, total = C_QuestLog.GetNumQuestLogEntries()
+      print(string.format("  GetNumQuestLogEntries = %s, %s", tostring(shown), tostring(total)))
+      local misses = 0
+      for i = 1, 100 do
+        local info = C_QuestLog.GetInfo(i)
+        if info then
+          misses = 0
+          print(string.format("  [%d] %s id=%s L%s hdr=%s hidden=%s task=%s bounty=%s internal=%s onQuest=%s", i, tostring(info.title), tostring(info.questID), tostring(info.level),
+            tostring(info.isHeader), tostring(info.isHidden), tostring(info.isTask), tostring(info.isBounty), tostring(info.isInternalOnly),
+            tostring(info.questID and C_QuestLog.IsOnQuest and C_QuestLog.IsOnQuest(info.questID))))
+        else misses = misses + 1; if misses > 3 then break end end
+      end
+    else print("  (Era) no C_QuestLog.GetInfo") end
+    Util.DumpFooter("/vqt rawlog")
   elseif cmd == "loc" then
     local id = tonumber(rest)
     local found
@@ -124,6 +144,7 @@ local function Slash(msg)
     Util.Print("version %s | client %s %s (build %s, interface %s, project %s) | character %s | %s | %s | %s",
       tostring(version), Client.flavour, ci.Version, ci.Build, tostring(ci.Interface), tostring(ci.Project),
       Client.PlayerDisplayName(), NS.db.settings.Enabled and "enabled" or "disabled", NS.StockTracker.Status(), NS.EditMode.Status(), NS.Location.Status(), NS.Position.Status(), NS.Interact.Status())
+    Util.Print(Model.Status())
   else
     Util.Print("/vqt - toggle | options | status | dump | touch <id> | focus <ids|clear> | reset")
   end
@@ -144,7 +165,7 @@ f:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 local function Stage(name, fn)
   local ok, err = pcall(fn)
-  if not ok then Util.Print("|cffff4040%s failed:|r %s", name, tostring(err)) end
+  if not ok then Util.Raise("init stage " .. name, err) end
 end
 
 f:SetScript("OnEvent", function(_, event, arg1)

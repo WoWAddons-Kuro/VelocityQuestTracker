@@ -460,7 +460,7 @@ function Blocks.Render(snap)
             keepButtons[qid] = true
           end
         end)
-        if not ok then Util.WarnOnce("itembutton:" .. qid, "item button for quest " .. qid .. ": " .. tostring(err)) end
+        if not ok then Util.Raise("item button for quest " .. qid, err) end
       end
     else
       -- hidden: if the hover card was anchored here, take it down too (its row just vanished)
@@ -481,6 +481,6 @@ function Blocks.Render(snap)
   Blocks.animating = anyAnim
   -- item buttons: drop any not wanted by a block drawn this pass
   local okR, errR = pcall(NS.ItemButtons.Reconcile, keepButtons)
-  if not okR then Util.WarnOnce("itembutton:reconcile", tostring(errR)) end
+  if not okR then Util.Raise("item button reconcile", errR) end
   return y
 end

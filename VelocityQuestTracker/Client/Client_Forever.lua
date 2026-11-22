@@ -15,7 +15,25 @@ function impl.PlayerDisplayName()
   return Client.DisplayNameFromParts(name, surname)
 end
 function impl.PlayerFirstName() return UnitName("player") end
-function impl.CurrentZoneName() return GetRealZoneText() or "" end
+
+-- The ZONE, never the sub-zone. GetRealZoneText() returns the interior area while the player is in
+-- one ("Gol'Bolar Quarry Mine", a mine in Dun Morogh), and the model compares that string with the
+-- quests' work / hand-in zone names ("Dun Morogh") -> nothing was in-zone: no active block for the
+-- quest being worked, the finished one filed under "+4 in Dun Morogh" (owner 2026-11-21). Walk up
+-- the map tree from the player's best map to the Zone-type ancestor and use its name; the text API is
+-- only a fallback when the map is unknown (instances).
+local ZONE_TYPE = Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3
+function impl.CurrentZoneName()
+  if C_Map and C_Map.GetBestMapForUnit and C_Map.GetMapInfo then
+    local info = C_Map.GetMapInfo(C_Map.GetBestMapForUnit("player") or 0)
+    local guard = 0
+    while info and info.mapType > ZONE_TYPE and info.parentMapID and info.parentMapID > 0 and guard < 10 do
+      info = C_Map.GetMapInfo(info.parentMapID); guard = guard + 1
+    end
+    if info and info.mapType == ZONE_TYPE and info.name and info.name ~= "" then return info.name end
+  end
+  return GetRealZoneText() or ""
+end
 function impl.StockTrackerFrame() return ObjectiveTrackerFrame end
 
 -- Modern quest log (map frame) takes a quest ID. Opening it from addon code is protected in combat.
