@@ -295,6 +295,8 @@ end
 local function RenderBlock(b, quest, now)
   local s = Settings()
   b.title:SetText(quest.title)
+  -- back from the card shape: the stock centred title is the visible one again
+  if b.handin then b.handin.titleGroup:Hide(); b.titleButton.text = b.title end
   if not b.titleButton.hovered then T.SetColour(b.title, T.Tone.Label) end   -- re-apply band tone
   local y = -(6 + T.LabelSize + 4)
   local anyAnim = false
@@ -344,21 +346,38 @@ local function RenderHandInCard(b, quest, now)
   if not h then
     h = CreateFrame("Frame", nil, b)
     h:SetHeight(T.RowHeight)
-    h.check = h:CreateTexture(nil, "ARTWORK")
-    h.check:SetSize(14, 14); h.check:SetPoint("TOPLEFT", 0, -(T.RowHeight - 14) / 2)
+    -- The CHECK sits on the TITLE ("this quest is done"), immediately before the title TEXT -- the
+    -- title FontString fills the button and centres, so the check is anchored to a shrink-wrapped
+    -- copy of the text (h.titleText, below), not to the FontString's left edge (owner 2026-11-21:
+    -- "right in front of the quest title"). The row below answers "where to".
+    h.check = b.titleButton:CreateTexture(nil, "ARTWORK")
+    h.check:SetSize(12, 12)
     local atlasOk = h.check.SetAtlas and pcall(h.check.SetAtlas, h.check, "common-icon-checkmark")
     if not (atlasOk and h.check:GetAtlas()) then h.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready") end
+    -- check + text as one centred unit: a holder frame sized to both, centred in the title button
+    h.titleGroup = CreateFrame("Frame", nil, b.titleButton)
+    h.titleGroup:SetPoint("CENTER", b.titleButton, "CENTER", 0, 0); h.titleGroup:SetHeight(T.LabelSize + 4)
+    h.check:SetPoint("LEFT", h.titleGroup, "LEFT", 0, 0)
+    h.titleText = T.Text(h.titleGroup, T.LabelSize, T.Tone.Label)
+    h.titleText:SetPoint("LEFT", h.check, "RIGHT", 6, 0)
+    -- turn-in glyph: the quest-giver's "?" bubble is what the game itself puts over a finisher
+    h.glyph = h:CreateTexture(nil, "ARTWORK")
+    h.glyph:SetSize(14, 14); h.glyph:SetPoint("TOPLEFT", 0, -(T.RowHeight - 14) / 2)
+    local glyphOk = h.glyph.SetAtlas and pcall(h.glyph.SetAtlas, h.glyph, "QuestTurnin")
+    if not (glyphOk and h.glyph:GetAtlas()) then h.glyph:SetTexture("Interface\\GossipFrame\\ActiveQuestIcon") end
     h.place = T.Text(h, T.RowSize)
-    h.place:SetPoint("TOPLEFT", h.check, "TOPRIGHT", 8, (T.RowHeight - 14) / 2); h.place:SetHeight(T.RowHeight)
+    h.place:SetPoint("TOPLEFT", h.glyph, "TOPRIGHT", 8, (T.RowHeight - 14) / 2); h.place:SetHeight(T.RowHeight)
     h.square = h:CreateTexture(nil, "ARTWORK")
     h.square:SetSize(T.Square, T.Square)
     h.square:SetPoint("LEFT", h.place, "RIGHT", 8, 0)
     -- second line: the place under the finisher name (other-zone shape), label tone
     h.sub = T.Text(h, T.LabelSize, T.Tone.Label)
     h.sub:SetPoint("TOPLEFT", h.place, "BOTTOMLEFT", 0, 0); h.sub:SetHeight(T.RowHeight - 2)
-    -- range spark (in-zone shape): same geometry as a nearby line, one marker
+    -- range spark (in-zone shape): same geometry as a nearby line, one marker. Anchored to the ROW
+    -- only (right edge, centred on the first text line) -- never to h.place, whose RIGHT is anchored
+    -- to the spark in the in-zone shape (circular anchor error on first render, 2026-11-21).
     h.spark = CreateFrame("Frame", nil, h)
-    h.spark:SetSize(T.SparkWidth, 8); h.spark:SetPoint("RIGHT", h, "RIGHT", 0, 0); h.spark:SetPoint("TOP", h.place, "TOP", 0, -(T.RowHeight - 8) / 2)
+    h.spark:SetSize(T.SparkWidth, 8); h.spark:SetPoint("TOPRIGHT", h, "TOPRIGHT", 0, -(T.RowHeight - 8) / 2)
     h.spark.base = h.spark:CreateTexture(nil, "BACKGROUND")
     h.spark.base:SetHeight(1); h.spark.base:SetPoint("LEFT", 0, 0); h.spark.base:SetPoint("RIGHT", 0, 0)
     h.spark.mark = h.spark:CreateTexture(nil, "ARTWORK"); h.spark.mark:SetSize(T.SparkMark, T.SparkMark)
@@ -396,6 +415,31 @@ local function RenderHandInCard(b, quest, now)
   elseif sinceDone < hold + fade then local r, g, bb = Util.Lerp3(T.Tone.Recent, T.Tone.Label, (sinceDone - hold) / fade); c = { r, g, bb }
   else c = T.Tone.Label end
   h.check:SetVertexColor(c[1], c[2], c[3])
+  -- Card flash (owner 2026-11-21): on completion the WHOLE card runs the segment pop -- white, pale,
+  -- then the held yellow -- through its wash only (no size change), fading back to the plain wash on
+  -- the same hold/fade clock as the check. Alpha rides well above the resting wash so the colour reads.
+  local washC, washA = T.Tone.Wash, T.WashAlpha
+  if sinceDone < POP_SECONDS then
+    local t = sinceDone / POP_SECONDS
+    local r, g, bb
+    if t < 0.6 then r, g, bb = Util.Lerp3(T.Tone.PopA, T.Tone.PopB, t / 0.6) else r, g, bb = Util.Lerp3(T.Tone.PopB, T.Tone.Recent, (t - 0.6) / 0.4) end
+    washC, washA = { r, g, bb }, 0.45 - 0.20 * t
+  elseif sinceDone < hold then
+    washC, washA = T.Tone.Recent, 0.25
+  elseif sinceDone < hold + fade then
+    local k = (sinceDone - hold) / fade
+    local r, g, bb = Util.Lerp3(T.Tone.Recent, T.Tone.Wash, k)
+    washC, washA = { r, g, bb }, 0.25 + (T.WashAlpha - 0.25) * k
+  end
+  T.SetColour(b.wash, washC, washA)
+  -- card title = [check] text, centred as one unit; the stock centred title is blanked for the card
+  -- shape (RenderBlock re-sets its text, so a block reverting from a card gets it back)
+  h.titleText:SetText(quest.title)
+  T.SetColour(h.titleText, b.titleButton.hovered and T.Tone.Todo or T.Tone.Label)
+  h.titleGroup:SetWidth(12 + 6 + h.titleText:GetStringWidth())
+  h.titleGroup:Show(); h.check:Show()
+  b.title:SetText("")
+  b.titleButton.text = h.titleText           -- hover brightening targets the visible text
   T.SetColour(h.place, T.Tone.Todo)
   local rowH = T.RowHeight + (lines - 1) * (T.RowHeight - 2)
   h:SetHeight(rowH)

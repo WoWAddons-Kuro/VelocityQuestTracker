@@ -248,11 +248,15 @@ function HoverCard.ShowBlock(row, quest)
   for i, o in ipairs(quest.objectives) do
     local r = AcquireBlockRow(i)
     r.name:SetText(T.CountlessName(o.name))
-    r.count:SetText(T.CountText(o.have, o.need))
-    -- text tones mirror a live block: bright while owed, label once done
-    local tone = o.have >= o.need and T.Tone.Label or T.Tone.Todo
+    -- Always have/need here, whatever "Show objectives as" says: the card sits next to a bar of
+    -- `need` cells, so "16 Stolen Blasting Powder ... 0" read as a contradiction (owner 2026-11-21).
+    r.count:SetText(string.format("%d/%d", o.have, o.need))
+    -- text tones mirror a live block: bright while owed, label once done. Done = the objective's own
+    -- flag OR the count, OR the quest being complete (a no-count objective can lag its flag).
+    local done = o.done or o.have >= o.need or quest.isComplete
+    local tone = done and T.Tone.Label or T.Tone.Todo
     T.SetColour(r.name, tone); T.SetColour(r.count, tone)
-    local h = FillSegments(r, o.have, o.need)
+    local h = FillSegments(r, done and o.need or o.have, o.need)
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", c, "TOPLEFT", PAD, -y); r:SetPoint("RIGHT", c, "RIGHT", -PAD, 0)
     r:SetHeight(h); r:Show()
     y = y + h + 2
