@@ -140,6 +140,12 @@ local function AcquireBlockRow(i)
   r:SetHeight(BLOCK_ROW_H)
   r.name = T.Text(r, T.RowSize, T.Tone.Near); r.name:SetPoint("LEFT", 0, 0)
   r.count = T.Text(r, T.RowSize, T.Tone.Near); r.count:SetPoint("RIGHT", 0, 0); r.count:SetJustifyH("RIGHT"); r.count:SetWidth(T.CountWidth)
+  -- done objectives show a check in the count slot instead of "0" (owner 2026-11-22)
+  r.check = r:CreateTexture(nil, "ARTWORK")
+  r.check:SetSize(12, 12); r.check:SetPoint("RIGHT", r.count, "RIGHT", 0, 0)
+  local atlasOk = r.check.SetAtlas and pcall(r.check.SetAtlas, r.check, "common-icon-checkmark")
+  if not (atlasOk and r.check:GetAtlas()) then r.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready") end
+  r.check:SetVertexColor(0.45, 0.75, 0.45); r.check:Hide()
   r.bar = CreateFrame("Frame", nil, r); r.bar:SetSize(T.BarWidth, T.SegHeight); r.bar:SetPoint("RIGHT", r.count, "LEFT", -T.ColGap, 0)
   r.name:SetPoint("RIGHT", r.bar, "LEFT", -T.ColGap, 0)
   r.segs = {}
@@ -248,12 +254,13 @@ function HoverCard.ShowBlock(row, quest)
   for i, o in ipairs(quest.objectives) do
     local r = AcquireBlockRow(i)
     r.name:SetText(T.CountlessName(o.name))
-    -- Always have/need here, whatever "Show objectives as" says: the card sits next to a bar of
-    -- `need` cells, so "16 Stolen Blasting Powder ... 0" read as a contradiction (owner 2026-11-21).
-    r.count:SetText(string.format("%d/%d", o.have, o.need))
     -- text tones mirror a live block: bright while owed, label once done. Done = the objective's own
     -- flag OR the count, OR the quest being complete (a no-count objective can lag its flag).
     local done = o.done or o.have >= o.need or quest.isComplete
+    -- Count slot: units REMAINING while owed; a green check when none are (owner 2026-11-22 -- the
+    -- have/need form from the day before was reverted: "6/8" next to an 8-cell bar double-counted).
+    if done then r.count:SetText(""); r.check:Show()
+    else r.count:SetText(tostring(o.need - o.have)); r.check:Hide() end
     local tone = done and T.Tone.Label or T.Tone.Todo
     T.SetColour(r.name, tone); T.SetColour(r.count, tone)
     local h = FillSegments(r, done and o.need or o.have, o.need)
