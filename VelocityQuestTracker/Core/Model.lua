@@ -149,18 +149,19 @@ local function DiffCounts(quests, now)
   return changes
 end
 
--- Hand-in place name for a complete quest. QuestieDB finisher sub-zone when Location knows it
--- (M2+), else the quest-log header zone (M1 behaviour).
+-- Hand-in place for a complete quest: place (sub-zone for display), zone (parent zone for the
+-- in-zone test), finisher NPC/object name, finisher spawn (VQT_SpawnYards, for the card's range spark).
+-- QuestieDB when Location knows the quest; else the quest-log header zone and nil name/spawn (M1).
 function Model.PlaceFor(q)
   local Location = NS.Location
   if Location and Location.IsAvailable and Location.IsAvailable() then
     local f = Location.FinisherFor(q.questID)
     if f and f.spawn then
-      -- place = sub-zone for display; zone = parent zone for the in-zone test
-      return Location.PlaceNameForArea(f.spawn.areaID) or q.zoneName, Location.ZoneNameForArea(f.spawn.areaID) or q.zoneName
+      return Location.PlaceNameForArea(f.spawn.areaID) or q.zoneName, Location.ZoneNameForArea(f.spawn.areaID) or q.zoneName,
+        f.source and f.source.name or nil, f.spawn
     end
   end
-  return q.zoneName, q.zoneName
+  return q.zoneName, q.zoneName, nil, nil
 end
 
 -- Zone names where a quest's REMAINING work is (QuestieDB spawn zones of unfinished objectives).
@@ -254,7 +255,7 @@ function Model.Build()
       q.rank = Rank(q.questID)
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
       if not q.isComplete then ProximityTouch(q, now) end   -- standing among the work is activity
-      if q.isComplete then q.turninPlace, q.turninZone = Model.PlaceFor(q) end   -- before Categorise: the card is in-zone only
+      if q.isComplete then q.turninPlace, q.turninZone, q.turninName, q.turninSpawn = Model.PlaceFor(q) end   -- before Categorise: the card is in-zone only
       q.category = Categorise(q, now, zone)
       -- Tracked == active, the other direction: a quest that just left active (or the hand-in card)
       -- is untracked in the stock log when "Auto-untrack inactive quests" is on. Only on the

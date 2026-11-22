@@ -321,8 +321,21 @@ local function RenderBlock(b, quest, now)
 end
 
 -- A complete quest, still recently active: the block becomes a hand-in card. Title as usual, then
--- one bright row: check glyph, the hand-in place (q.turninPlace), a difficulty square. The check is
--- yellow (Recent) for the hold time after completion so the eye lands on "done, go here".
+-- the hand-in row(s). Three shapes (owner 2026-11-21):
+--   finisher known, hand-in IN this zone : check | finisher name            | range spark (one marker
+--                                          at the finisher's distance, the nearby lines' scale)
+--   finisher known, other zone           : check | finisher name
+--                                                  place (second line, indented under the name)
+--   finisher unknown (no QuestieDB)      : check | place | difficulty square   (M1 row)
+-- The check is yellow (Recent) for the hold time after completion so the eye lands on "done, go here".
+local function HandInMarkerFraction(quest)
+  local Position, Nearby = NS.Position, NS.Nearby
+  if not (quest.turninSpawn and Position and Position.Current() and Nearby) then return nil end
+  local d = Position.DistanceTo(quest.turninSpawn)
+  if not d then return nil end
+  return Nearby.ScaleDistance(d, Position.NearbyRangeYards())
+end
+
 local function RenderHandInCard(b, quest, now)
   b.title:SetText(quest.title)
   if not b.titleButton.hovered then T.SetColour(b.title, T.Tone.Label) end   -- re-apply band tone
@@ -332,18 +345,48 @@ local function RenderHandInCard(b, quest, now)
     h = CreateFrame("Frame", nil, b)
     h:SetHeight(T.RowHeight)
     h.check = h:CreateTexture(nil, "ARTWORK")
-    h.check:SetSize(14, 14); h.check:SetPoint("LEFT", 0, 0)
+    h.check:SetSize(14, 14); h.check:SetPoint("TOPLEFT", 0, -(T.RowHeight - 14) / 2)
     local atlasOk = h.check.SetAtlas and pcall(h.check.SetAtlas, h.check, "common-icon-checkmark")
     if not (atlasOk and h.check:GetAtlas()) then h.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready") end
     h.place = T.Text(h, T.RowSize)
-    h.place:SetPoint("LEFT", h.check, "RIGHT", 8, 0)
+    h.place:SetPoint("TOPLEFT", h.check, "TOPRIGHT", 8, (T.RowHeight - 14) / 2); h.place:SetHeight(T.RowHeight)
     h.square = h:CreateTexture(nil, "ARTWORK")
     h.square:SetSize(T.Square, T.Square)
     h.square:SetPoint("LEFT", h.place, "RIGHT", 8, 0)
+    -- second line: the place under the finisher name (other-zone shape), label tone
+    h.sub = T.Text(h, T.LabelSize, T.Tone.Label)
+    h.sub:SetPoint("TOPLEFT", h.place, "BOTTOMLEFT", 0, 0); h.sub:SetHeight(T.RowHeight - 2)
+    -- range spark (in-zone shape): same geometry as a nearby line, one marker
+    h.spark = CreateFrame("Frame", nil, h)
+    h.spark:SetSize(T.SparkWidth, 8); h.spark:SetPoint("RIGHT", h, "RIGHT", 0, 0); h.spark:SetPoint("TOP", h.place, "TOP", 0, -(T.RowHeight - 8) / 2)
+    h.spark.base = h.spark:CreateTexture(nil, "BACKGROUND")
+    h.spark.base:SetHeight(1); h.spark.base:SetPoint("LEFT", 0, 0); h.spark.base:SetPoint("RIGHT", 0, 0)
+    h.spark.mark = h.spark:CreateTexture(nil, "ARTWORK"); h.spark.mark:SetSize(T.SparkMark, T.SparkMark)
     b.handin = h
   end
-  h.place:SetText(quest.turninPlace or quest.zoneName or "?")
-  T.SetColour(h.square, T.DifficultyColour(quest.level))
+  local place = quest.turninPlace or quest.zoneName or "?"
+  local zone = NS.Model.Current().zone
+  local inZone = quest.turninZone ~= nil and quest.turninZone == zone
+  local lines = 1
+  if quest.turninName and inZone then
+    h.place:SetText(quest.turninName)
+    h.square:Hide(); h.sub:Hide()
+    local f = HandInMarkerFraction(quest)
+    if f then
+      T.SetColour(h.spark.base, T.Tone.Todo, 0.35); T.SetColour(h.spark.mark, T.Tone.Todo)
+      h.spark.mark:ClearAllPoints(); h.spark.mark:SetPoint("LEFT", h.spark, "LEFT", math.floor(f * (T.SparkWidth - T.SparkMark) + 0.5), 0)
+      h.spark:Show(); h.place:SetPoint("RIGHT", h.spark, "LEFT", -T.ColGap, 0)
+    else h.spark:Hide(); h.place:SetPoint("RIGHT", h, "RIGHT", 0, 0) end
+  elseif quest.turninName then
+    h.place:SetText(quest.turninName); h.place:SetPoint("RIGHT", h, "RIGHT", 0, 0)
+    h.sub:SetText(place); T.SetColour(h.sub, T.Tone.Label); h.sub:Show()
+    h.square:Hide(); h.spark:Hide()
+    lines = 2
+  else
+    h.place:SetText(place); h.place:SetPoint("RIGHT", h, "RIGHT", -(8 + T.Square), 0)
+    T.SetColour(h.square, T.DifficultyColour(quest.level)); h.square:Show()
+    h.sub:Hide(); h.spark:Hide()
+  end
   -- check tone: yellow for the hold window after completion, then label tone
   local sinceDone = quest.lastActivityAt and (now - quest.lastActivityAt) or math.huge
   local hold = Settings().HoldSeconds or 4
@@ -354,11 +397,13 @@ local function RenderHandInCard(b, quest, now)
   else c = T.Tone.Label end
   h.check:SetVertexColor(c[1], c[2], c[3])
   T.SetColour(h.place, T.Tone.Todo)
+  local rowH = T.RowHeight + (lines - 1) * (T.RowHeight - 2)
+  h:SetHeight(rowH)
   h:ClearAllPoints()
   h:SetPoint("TOPLEFT", b, "TOPLEFT", T.PadX, -(6 + T.LabelSize + 4))
   h:SetPoint("RIGHT", b, "RIGHT", -T.PadX, 0)
   h:Show()
-  local height = 6 + T.LabelSize + 4 + T.RowHeight + 6
+  local height = 6 + T.LabelSize + 4 + rowH + 6
   b:SetHeight(height)
   return height, sinceDone < hold + fade
 end
