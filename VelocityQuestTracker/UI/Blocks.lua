@@ -516,15 +516,29 @@ local function RenderHandInCard(b, quest, now)
   b.titleButton.text = h.titleText           -- hover brightening targets the visible text
   T.SetColour(h.place, c)
   T.SetColour(h.spark.base, c, 0.35); T.SetColour(h.spark.mark, c)
+  -- Timed delivery (SPEC-VQT-TimedQuests): most timed quests are complete on accept and the clock runs
+  -- until hand-in, so the hand-in card carries the "Remaining:" line too, under the title.
+  local titleBottom = 6 + T.LabelSize + 4
+  local timerLeft = TimerSecondsLeft(quest, now)
+  if timerLeft then
+    b.timer:SetText("Remaining: " .. Blocks.FormatTimer(timerLeft))
+    T.SetColour(b.timer, TimerTone(timerLeft))
+    b.timer:ClearAllPoints()
+    b.timer:SetPoint("TOP", b, "TOP", 0, -(titleBottom + TIMER_LINE_GAP))
+    b.timer:Show()
+    titleBottom = titleBottom + TIMER_LINE_GAP + T.LabelSize + 4
+  else
+    b.timer:Hide()
+  end
   local rowH = T.RowHeight + (lines - 1) * (T.RowHeight - 2)
   h:SetHeight(rowH)
   h:ClearAllPoints()
-  h:SetPoint("TOPLEFT", b, "TOPLEFT", T.PadX, -(6 + T.LabelSize + 4))
+  h:SetPoint("TOPLEFT", b, "TOPLEFT", T.PadX, -titleBottom)
   h:SetPoint("RIGHT", b, "RIGHT", -T.PadX, 0)
   h:Show()
-  local height = 6 + T.LabelSize + 4 + rowH + 6
+  local height = titleBottom + rowH + 6
   b:SetHeight(height)
-  return height, sinceDone < hold + fade or arrived
+  return height, sinceDone < hold + fade or arrived or timerLeft ~= nil
 end
 
 -- Public ------------------------------------------------------------------------------

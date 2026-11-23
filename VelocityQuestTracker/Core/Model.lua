@@ -233,7 +233,9 @@ end
 local function Categorise(q, now, zone)
   -- A running quest timer is ALWAYS a card (SPEC-VQT-TimedQuests decision 1): no zone test, no activity
   -- window. The clock is the most time-critical thing in the log and must never age onto a line.
-  if q.timerRunning then return "active" end
+  -- A COMPLETE timed quest (carry X to Y before it burns: complete on accept, timer runs until hand-in)
+  -- is a hand-in card with the clock on it.
+  if q.timerRunning then return q.isComplete and "turnin_card" or "active" end
   local at = lastActivityAt[q.questID]
   local window = Settings().ActiveWindowSeconds or 300
   local recentlyActive = at and (now - at) < window
@@ -329,8 +331,9 @@ function Model.Build()
     if not focusSet or focusSet[q.questID] then
       q.rank = Rank(q.questID)
       -- Timed quest with a live clock (SPEC-VQT-TimedQuests): pinned to a card by Categorise, sorted
-      -- first, never auto-untracked. A failed or complete timed quest is an ordinary quest again.
-      q.timerRunning = q.timerRemainingSeconds ~= nil and not q.isComplete and not q.isFailed
+      -- first, never auto-untracked. Complete quests keep the clock (most timed quests are "deliver
+      -- before it expires": complete on accept). A failed timed quest is an ordinary quest again.
+      q.timerRunning = q.timerRemainingSeconds ~= nil and not q.isFailed
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
       if not q.isComplete then ProximityTouch(q, now) end   -- standing among the work is activity
       -- a drop landed within the active window (DiffCounts stamps recentUnits): the one form of
