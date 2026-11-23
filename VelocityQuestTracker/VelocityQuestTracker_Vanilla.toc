@@ -13,6 +13,7 @@
 
 Libs\LibStub\LibStub.lua
 Libs\LibEditMode\embed.xml
+Libs\LibEditModeProfileExtension\embed.xml
 Libs\LibZoneBrightness\LibZoneBrightness-1.0.lua
 
 Core\Util.lua

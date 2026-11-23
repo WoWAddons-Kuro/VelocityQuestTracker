@@ -9,7 +9,6 @@ local DB_VERSION = 1
 -- VQT_Settings (account-wide, VelocityQuestTrackerDB.settings)
 local DEFAULT_SETTINGS = {
   Enabled = true,
-  LockPosition = true,
   RequireShiftToInteract = false,
   RequireShiftForHover = false,
   ActiveWindowSeconds = 300,
@@ -27,6 +26,29 @@ local DEFAULT_SETTINGS = {
   OrderNearbyByProximity = true,        -- nearby rows closest-first (nearest spawn); off = quest-log order
 }
 
+-- VQT_LayoutProfile: everything that belongs to a HUD layout, saved per Edit Mode layout name (Forever) or
+-- per manual profile (Era) through LibEditModeProfileExtension -> VelocityQuestTrackerDB.profiles[name].
+-- Map|Range view is NOT here: it is per-character view state (owner 2026-11-22).
+local DEFAULT_PROFILE = {
+  panel = nil,              -- VQT_PanelPlacement { point, x, y, placed }; nil = first look lands on the stock tracker
+  lockPosition = true,      -- panel moves only in Edit Mode (or via the Era Options block)
+}
+
+-- One-time seed of the current profile from the pre-profile per-character storage. Idempotent (only fills
+-- nils) and re-run on the first real profile name on Forever, where the layout name arrives after login.
+local function MigrateIntoProfile()
+  local p = NS.Profiles:Current()
+  local chardb = VelocityQuestTrackerCharDB
+  if chardb.panel ~= nil then
+    if p.panel == nil then p.panel = chardb.panel end
+    chardb.panel = nil
+  end
+  if NS.db.settings.LockPosition ~= nil then
+    if p.lockPosition == nil then p.lockPosition = NS.db.settings.LockPosition and true or false end
+    NS.db.settings.LockPosition = nil
+  end
+end
+
 local function InitDB()
   VelocityQuestTrackerDB = type(VelocityQuestTrackerDB) == "table" and VelocityQuestTrackerDB or {}
   VelocityQuestTrackerCharDB = type(VelocityQuestTrackerCharDB) == "table" and VelocityQuestTrackerCharDB or {}
@@ -37,6 +59,20 @@ local function InitDB()
   VelocityQuestTrackerCharDB.nearbyView = VelocityQuestTrackerCharDB.nearbyView or "range"
   NS.db = db
   NS.chardb = VelocityQuestTrackerCharDB
+
+  local LEMPE = LibStub and LibStub("LibEditModeProfileExtension-1.0", true)
+  if not LEMPE then error("LibEditModeProfileExtension-1.0 missing") end
+  NS.Profiles = LEMPE:New({
+    account = db, char = VelocityQuestTrackerCharDB, defaults = DEFAULT_PROFILE,
+    onChanged = function(newName, oldName)
+      MigrateIntoProfile()
+      if NS.EditMode and NS.EditMode.OnProfileChanged then NS.EditMode.OnProfileChanged(newName, oldName) end
+      if NS.Options and NS.Options.Refresh then NS.Options.Refresh() end
+    end,
+  })
+  -- the manual source is resolved at once; the Edit Mode source may still be on the placeholder name, in which
+  -- case the seed waits for onChanged (a placeholder record would otherwise swallow the migrated position)
+  if NS.Profiles:IsResolved() then MigrateIntoProfile() end
 end
 
 -- Public inter-addon API --------------------------------------------------------------
@@ -51,7 +87,6 @@ end
 
 function NS.OnSettingChanged(key)
   if key == "Enabled" then ApplyEnabled()
-  elseif key == "LockPosition" then NS.EditMode.ApplyLock()
   else Model.MarkDirty(key) end
 end
 
@@ -135,6 +170,20 @@ local function Slash(msg)
     local id = tonumber(rest)
     if id then Model.TouchQuest(id); Util.Print("quest %d marked active", id) else Util.Print("usage: /vqt touch <questID>") end
   elseif cmd == "reset" then NS.EditMode.ResetPosition(); Util.Print("panel position reset")
+  elseif cmd == "profile" then
+    -- Layout profile: on Forever the game's Edit Mode layout IS the profile; on Era we keep our own list.
+    local P = NS.Profiles
+    if rest == "" or rest == "list" then
+      Util.Print("layout profile: %s (%s)", P:Name(), P:Source() == "editmode" and "Edit Mode layout" or "manual")
+      for _, n in ipairs(P:List()) do print(string.format("  %s%s", n == P:Name() and "> " or "  ", n)) end
+      if P:Source() == "manual" then Util.Print("/vqt profile <name> selects; create/delete in /vqt options") end
+    elseif P:Source() ~= "editmode" then
+      -- the user typed lower-case; match names case-insensitively
+      local target; for _, n in ipairs(P:List()) do if n:lower() == rest then target = n end end
+      if target and P:Select(target) then Util.Print("layout profile: %s", target) else Util.Print("no profile named %q", rest) end
+    else
+      Util.Print("on this client the profile follows the Edit Mode layout; switch it in Edit Mode")
+    end
   elseif cmd == "focus" then
     if rest == "" or rest == "clear" then Model.SetFocus(nil); Util.Print("focus cleared")
     else local ids = {}; for n in rest:gmatch("%d+") do ids[#ids + 1] = tonumber(n) end; Model.SetFocus(ids); Util.Print("focus set to %d quest(s)", #ids) end
