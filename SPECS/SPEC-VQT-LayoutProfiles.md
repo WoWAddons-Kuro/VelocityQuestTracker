@@ -1,6 +1,6 @@
 # SPEC-VQT-LayoutProfiles: panel placement saved per layout profile
 
-- **Status:** Approved (owner, 2026-11-22); implementing
+- **Status:** Implemented 2026-11-22 (M1); in-game tests M2/M3 pending. Library extracted to its own repo `LibEditModeProfileExtension\` (top level), VQT declares it as a RequiredDep.
 - **Parent:** `PLAN-VelocityQuestTracker.md` (Positioning row), `UI\EditMode.lua`, `UI\ItemButtons.lua`
 - **Driver:** VelocitySettingsSync (today `ChatSync`) switches the Edit Mode HUD layout at login
   (`ChatSync.lua` ~L451, `C_EditMode.SetActiveLayout` / `EditModeManagerFrame:SelectLayout`). When that
