@@ -9,18 +9,27 @@ local StockTracker = {}
 NS.StockTracker = StockTracker
 
 local sink
-local originalParent
+local originalParent = {}       -- frame -> parent it had before we swallowed it
 local swallowed = false
-local hooked = false
+local hooked = {}               -- frame -> true once SetParent / OnShow are hooked
 
-local function Stock() return Client.StockTrackerFrame() end
+-- Every Blizzard frame we take over: the objective tracker, and the standalone timed-quest countdown
+-- (QuestTimerFrame; SPEC-VQT-TimedQuests draws the clock on the card instead). nil entries are skipped.
+local function StockFrames()
+  local list = {}
+  local tracker = Client.StockTrackerFrame()
+  if tracker then list[#list + 1] = tracker end
+  local timer = Client.QuestTimerFrame and Client.QuestTimerFrame()
+  if timer then list[#list + 1] = timer end
+  return list
+end
 
 -- Edit Mode (and some layout code) re-parents the stock tracker back to UIParent when a layout is
 -- applied. Hook SetParent so a foreign re-parent while we are enabled is undone next frame, and
 -- re-swallow when Edit Mode exits.
 local function HookOnce(f)
-  if hooked then return end
-  hooked = true
+  if hooked[f] then return end
+  hooked[f] = true
   hooksecurefunc(f, "SetParent", function(self, parent)
     if swallowed and parent ~= sink and not InCombatLockdown() then
       C_Timer.After(0, function() if swallowed and self:GetParent() ~= sink then self:SetParent(sink) end end)
@@ -30,27 +39,33 @@ local function HookOnce(f)
 end
 
 function StockTracker.Swallow()
-  local f = Stock()
-  if not f or swallowed then return end
+  local frames = StockFrames()
+  if #frames == 0 or swallowed then return end
   if InCombatLockdown() then NS.deferToOutOfCombat = NS.deferToOutOfCombat or {}; NS.deferToOutOfCombat.swallow = true; return end
   if not sink then
     sink = CreateFrame("Frame", "VelocityQuestTrackerStockSink", UIParent)
     sink:Hide()
   end
-  originalParent = originalParent or f:GetParent() or UIParent
-  HookOnce(f)
-  f:SetParent(sink)
-  f:Hide()
+  for _, f in ipairs(frames) do
+    originalParent[f] = originalParent[f] or f:GetParent() or UIParent
+    HookOnce(f)
+    f:SetParent(sink)
+    f:Hide()
+  end
   swallowed = true
 end
 
 function StockTracker.Release()
-  local f = Stock()
-  if not f or not swallowed then return end
+  local frames = StockFrames()
+  if #frames == 0 or not swallowed then return end
   if InCombatLockdown() then NS.deferToOutOfCombat = NS.deferToOutOfCombat or {}; NS.deferToOutOfCombat.release = true; return end
-  f:SetParent(originalParent or UIParent)
-  f:Show()
   swallowed = false
+  for _, f in ipairs(frames) do
+    f:SetParent(originalParent[f] or UIParent)
+    -- the tracker is always shown; the timer frame only shows itself while a timer runs (it manages
+    -- that from QUEST_TIMER_UPDATE), so re-showing it empty would draw a blank header
+    if f == Client.StockTrackerFrame() then f:Show() end
+  end
 end
 
 function StockTracker.Apply(enabled)
@@ -65,7 +80,9 @@ function StockTracker.OnLeaveCombat()
 end
 
 function StockTracker.Status()
-  local f = Stock()
-  if not f then return "stock tracker frame not found" end
-  return swallowed and ("stock tracker swallowed (" .. (f:GetName() or "?") .. ")") or "stock tracker visible"
+  local frames = StockFrames()
+  if #frames == 0 then return "stock tracker frame not found" end
+  local names = {}
+  for _, f in ipairs(frames) do names[#names + 1] = f:GetName() or "?" end
+  return swallowed and ("stock frames swallowed (" .. table.concat(names, ", ") .. ")") or "stock tracker visible"
 end

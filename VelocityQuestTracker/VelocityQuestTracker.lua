@@ -18,6 +18,8 @@ local DEFAULT_SETTINGS = {
   ErrandGraceSeconds = 120,              -- a just-completed quest is a hand-in card even out of zone for this long
   HoldSeconds = 4,
   FadeSeconds = 1,
+  TimerWarnSeconds = 60,                 -- timed quest: the "Remaining:" line turns yellow under this (SPEC-VQT-TimedQuests)
+  TimerDangerSeconds = 15,               -- ... and red under this
   HideCompletedSegments = true,          -- done units are not drawn; the bar shows only what is left (default on, owner 2026-11-22)
   HideCompletedRows = true,              -- an objective row leaves the block once its last unit has faded
   AutoUntrackInactive = true,
@@ -194,6 +196,7 @@ end
 local QUEST_EVENTS = {
   "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE",
   "UNIT_QUEST_LOG_CHANGED", "QUEST_WATCH_UPDATE", "QUEST_WATCH_LIST_CHANGED",   -- LIST_CHANGED = the track checkbox (Forever)
+  "QUEST_TIMER_UPDATE",                                                          -- timed quest clock started / stopped / corrected (SPEC-VQT-TimedQuests)
   "ZONE_CHANGED", "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED_INDOORS",
 }
 

@@ -231,6 +231,9 @@ function Model.WorkZonesFor(q)
 end
 
 local function Categorise(q, now, zone)
+  -- A running quest timer is ALWAYS a card (SPEC-VQT-TimedQuests decision 1): no zone test, no activity
+  -- window. The clock is the most time-critical thing in the log and must never age onto a line.
+  if q.timerRunning then return "active" end
   local at = lastActivityAt[q.questID]
   local window = Settings().ActiveWindowSeconds or 300
   local recentlyActive = at and (now - at) < window
@@ -325,6 +328,9 @@ function Model.Build()
   for _, q in ipairs(quests) do
     if not focusSet or focusSet[q.questID] then
       q.rank = Rank(q.questID)
+      -- Timed quest with a live clock (SPEC-VQT-TimedQuests): pinned to a card by Categorise, sorted
+      -- first, never auto-untracked. A failed or complete timed quest is an ordinary quest again.
+      q.timerRunning = q.timerRemainingSeconds ~= nil and not q.isComplete and not q.isFailed
       q.workZones = Model.WorkZonesFor(q)             -- zone names of the remaining work (1..n)
       if not q.isComplete then ProximityTouch(q, now) end   -- standing among the work is activity
       -- a drop landed within the active window (DiffCounts stamps recentUnits): the one form of
@@ -335,7 +341,7 @@ function Model.Build()
       -- Tracked == active, the other direction: a quest that just left active (or the hand-in card)
       -- is untracked in the stock log when "Auto-untrack inactive quests" is on. Only on the
       -- transition, so a player re-tracking it by hand is honoured (that re-track is a Touch above).
-      if Settings().AutoUntrackInactive ~= false and q.isWatched then
+      if Settings().AutoUntrackInactive ~= false and q.isWatched and not q.timerRunning then
         local was = lastCategory[q.questID]
         local nowActive = q.category == "active" or q.category == "turnin_card"
         if (was == "active" or was == "turnin_card") and not nowActive then
@@ -355,6 +361,13 @@ function Model.Build()
   for _, bucket in pairs(snap.byCategory) do
     table.sort(bucket, function(a, b) return a.rank < b.rank end)
   end
+  -- Timed quests first in the block area (SPEC-VQT-TimedQuests decision 4): a running clock is the one
+  -- legitimate reason to jump the append-only slot order. Rank order within each group.
+  table.sort(snap.byCategory.active, function(a, b)
+    local ta, tb = a.timerRunning and 1 or 0, b.timerRunning and 1 or 0
+    if ta ~= tb then return ta > tb end
+    return a.rank < b.rank
+  end)
 
   -- group turn-ins by place (M1: header zone), other-zone by zone; groups keep first-seen order
   local function Group(list, keyFn, out, keyName)
@@ -465,8 +478,9 @@ function Model.Dump()
     local now = GetTime()
     local act = lastActivityAt[q.questID]; local gr = graceStartAt[q.questID]
     local ages = string.format(" act=%s grace=%s", act and string.format("%.0fs", now - act) or "-", gr and string.format("%.0fs", now - gr) or "-")
+    if q.timerRemainingSeconds then ages = ages .. string.format(" timer=%.0fs%s", q.timerRemainingSeconds - (now - (q.timerSampledAt or now)), q.timerTotalSeconds and ("/" .. q.timerTotalSeconds) or "") end
     print(string.format("  [%s] %d %s (L%d)%s%s zone=%s%s", q.category, q.questID, q.title, q.level,
-      q.isComplete and " COMPLETE" or "", q.isWatched and " watched" or "", tostring(q.zoneName) .. " work=" .. table.concat(q.workZones or {}, "/") .. (q.turninPlace and (" turnin=" .. q.turninPlace) or ""), ages))
+      q.isComplete and " COMPLETE" or (q.isFailed and " FAILED" or ""), q.isWatched and " watched" or "", tostring(q.zoneName) .. " work=" .. table.concat(q.workZones or {}, "/") .. (q.turninPlace and (" turnin=" .. q.turninPlace) or ""), ages))
     for _, o in ipairs(q.objectives) do
       print(string.format("      %d. %s  %d/%d %s%s", o.index, o.name, o.have, o.need, o.type, o.done and " done" or ""))
     end

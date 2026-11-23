@@ -295,6 +295,9 @@ local function AcquireBlock(questID)
   b.titleButton:SetScript("OnEnter", OnTitleEnter)
   b.titleButton:SetScript("OnLeave", OnTitleLeave)
   b.titleButton:SetScript("OnClick", OnTitleClick)
+  -- timed-quest countdown line (hidden unless the quest has a running timer; see RenderBlock)
+  b.timer = T.Text(b, T.LabelSize, T.Tone.Label)
+  b.timer:SetJustifyH("CENTER"); b.timer:SetWidth(T.PanelWidth - 2 * T.PadX); b.timer:Hide()
   b.rows = {}
   blocksByQuest[questID] = b
   blockOrder[#blockOrder + 1] = questID
@@ -302,6 +305,28 @@ local function AcquireBlock(questID)
 end
 
 -- Render a block; returns height, and whether anything inside is animating.
+-- Timed quest countdown (SPEC-VQT-TimedQuests): "Remaining: mm:ss" centred under the title. Seconds
+-- are the model's last sample extrapolated with GetTime(), so no API call per frame; the block
+-- reports itself animating while a clock runs so Panel.OnUpdate re-renders every frame.
+-- Tones: Label, then Recent (yellow) under TimerWarnSeconds, then Danger (red) under TimerDangerSeconds.
+local TIMER_LINE_GAP = 2
+function Blocks.FormatTimer(seconds)
+  seconds = math.floor(math.max(0, seconds or 0) + 0.5)
+  local h, m, s = math.floor(seconds / 3600), math.floor(seconds % 3600 / 60), seconds % 60
+  if h > 0 then return string.format("%d:%02d:%02d", h, m, s) end
+  return string.format("%d:%02d", m, s)
+end
+local function TimerSecondsLeft(quest, now)
+  if not quest.timerRunning or not quest.timerRemainingSeconds then return nil end
+  return math.max(0, quest.timerRemainingSeconds - (now - (quest.timerSampledAt or now)))
+end
+local function TimerTone(left)
+  local s = Settings()
+  if left < (s.TimerDangerSeconds or 15) then return T.Tone.Danger end
+  if left < (s.TimerWarnSeconds or 60) then return T.Tone.Recent end
+  return T.Tone.Label
+end
+
 local function RenderBlock(b, quest, now)
   local s = Settings()
   b.title:SetText(quest.title)
@@ -310,6 +335,18 @@ local function RenderBlock(b, quest, now)
   if not b.titleButton.hovered then T.SetColour(b.title, T.Tone.Label) end   -- re-apply band tone
   local y = -(6 + T.LabelSize + 4)
   local anyAnim = false
+  local timerLeft = TimerSecondsLeft(quest, now)
+  if timerLeft then
+    b.timer:SetText("Remaining: " .. Blocks.FormatTimer(timerLeft))
+    T.SetColour(b.timer, TimerTone(timerLeft))
+    b.timer:ClearAllPoints()
+    b.timer:SetPoint("TOP", b, "TOP", 0, y - TIMER_LINE_GAP)
+    b.timer:Show()
+    y = y - TIMER_LINE_GAP - T.LabelSize - 4
+    anyAnim = true                                   -- the clock ticks: re-render each frame
+  else
+    b.timer:Hide()
+  end
   local shownRows = 0
   for idx, obj in ipairs(quest.objectives) do
     local row = AcquireRow(b, idx)

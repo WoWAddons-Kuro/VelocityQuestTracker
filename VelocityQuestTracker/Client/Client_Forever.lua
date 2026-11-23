@@ -35,6 +35,7 @@ function impl.CurrentZoneName()
   return GetRealZoneText() or ""
 end
 function impl.StockTrackerFrame() return ObjectiveTrackerFrame end
+function impl.QuestTimerFrame() return QuestTimerFrame end   -- Blizzard's standalone countdown; swallowed with the tracker
 
 -- Modern quest log (map frame) takes a quest ID. Opening it from addon code is protected in combat.
 -- QuestMapFrame_OpenToQuestDetails lives in Blizzard_WorldMap, a LOAD-ON-DEMAND addon: it is nil until
@@ -118,6 +119,23 @@ end
 function impl.Quests()
   local quests = {}
   local numEntries = C_QuestLog.GetNumQuestLogEntries() or 0
+  -- Timed quests (SPEC-VQT-TimedQuests): C_QuestLog.GetQuestTimers() lists RUNNING timers only, questTimer =
+  -- seconds remaining. GetTimeAllowed(questID) adds the total (may return nothing; pcall'd).
+  local timerSecondsByQuestID = {}
+  if C_QuestLog.GetQuestTimers then
+    local ok, list = pcall(C_QuestLog.GetQuestTimers)
+    if ok and type(list) == "table" then
+      for _, t in ipairs(list) do
+        if t and t.questID and type(t.questTimer) == "number" then timerSecondsByQuestID[t.questID] = t.questTimer end
+      end
+    end
+  end
+  local function TimerTotal(questID)
+    if not C_QuestLog.GetTimeAllowed then return nil end
+    local ok, total = pcall(C_QuestLog.GetTimeAllowed, questID)
+    return ok and type(total) == "number" and total > 0 and total or nil
+  end
+  local sampledAt = GetTime()
   local header
   for i = 1, numEntries do
     local info = C_QuestLog.GetInfo(i)
@@ -127,12 +145,16 @@ function impl.Quests()
       elseif info.questID and info.questID > 0 and not info.isHidden then
         local qid = info.questID
         local objectives = Objectives(qid, i)
+        local timerLeft = timerSecondsByQuestID[qid]
         quests[#quests + 1] = {
           questID = qid, title = info.title or ("quest " .. qid), level = info.level or 0,
           isComplete = Client.DeriveComplete(C_QuestLog.IsComplete(qid), objectives),
           isFailed = C_QuestLog.IsFailed and C_QuestLog.IsFailed(qid) and true or false,
           isWatched = C_QuestLog.GetQuestWatchType and C_QuestLog.GetQuestWatchType(qid) ~= nil or false,
           zoneName = header,
+          timerRemainingSeconds = timerLeft,
+          timerSampledAt = timerLeft and sampledAt or nil,
+          timerTotalSeconds = timerLeft and TimerTotal(qid) or nil,
           objectives = objectives,
         }
       end

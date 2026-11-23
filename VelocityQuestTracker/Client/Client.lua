@@ -11,6 +11,10 @@
 --     isFailed  = boolean,
 --     isWatched = boolean,           -- stock tracker flag; read, not yet used
 --     zoneName  = string|nil,        -- the quest log header this quest sits under
+--     timerRemainingSeconds = number|nil,  -- timed quest: seconds left when Quests() sampled it (nil = no running timer)
+--     timerSampledAt        = number|nil,  -- GetTime() of that sample; the view extrapolates from it per frame
+--     timerTotalSeconds     = number|nil,  -- Forever only (C_QuestLog.GetTimeAllowed); nil on Era
+--                                          -- (SPECS/SPEC-VQT-TimedQuests.md; API notes _EXTERNAL_APIS/wow_quest_timer_api.md)
 --     objectives = { VQT_Objective, ... }
 --   }
 --   VQT_Objective = {
@@ -34,6 +38,7 @@ Client.INTERFACE = {
   "PlayerFirstName",    -- -> UnitName("player")
   "Quests",             -- -> { VQT_Quest, ... } for the whole log
   "StockTrackerFrame",  -- -> Frame|nil  the Blizzard quest tracker to hide
+  "QuestTimerFrame",    -- -> Frame|nil  Blizzard's standalone timed-quest countdown frame (hidden with the tracker)
   "CurrentZoneName",    -- -> string      GetRealZoneText()
   "OpenQuestLog",       -- (questID)      open the game's quest log to this quest; no-op in combat
   "SetWatched",         -- (questID, bool) set the stock "tracked" flag (the model keeps tracked == active)

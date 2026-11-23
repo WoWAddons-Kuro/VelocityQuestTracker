@@ -39,6 +39,7 @@ T.Base = {
   Done   = Tone("#566058"),   -- dim: done units
   Label  = Tone("#8d958e"),   -- dim: labels, place names, quest titles
   Recent = Tone("#ffcf4d"),   -- yellow: just happened (check glyph, outlines, text)
+  Danger = Tone("#e0564d"),   -- red: a quest timer in its last seconds (SPEC-VQT-TimedQuests); accent, no band role
   RecentSeg = Tone("#a08a38"),-- yellow at done-cell brightness: the held segment itself, so it reads as a tinted done cell
   PopA   = Tone("#ffffff"),
   PopB   = Tone("#ffe89a"),

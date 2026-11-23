@@ -153,6 +153,14 @@ function Options.Create()
     function(v) return string.format("Fade to dim: %.1f s", v) end), 44, -10)
   tm:Finish()
 
+  -- Timed quests (SPEC-VQT-TimedQuests): a running clock always keeps its card; the countdown line's colour steps.
+  local tq = Section("Timed quests")
+  tq:Add(Slider(tq, "VelocityQuestTrackerOptTimerWarn", "TimerWarnSeconds", 60, 10, 300, 5,
+    function(v) return string.format("\"Remaining:\" turns yellow with %d s left", v) end), 44, -10)
+  tq:Add(Slider(tq, "VelocityQuestTrackerOptTimerDanger", "TimerDangerSeconds", 15, 0, 120, 5,
+    function(v) if v <= 0 then return "\"Remaining:\" never turns red" end return string.format("\"Remaining:\" turns red with %d s left", v) end), 44, -10)
+  tq:Finish()
+
   local nb = Section("Nearby work")
   nb:Add(Check(nb, "ExperimentalMapMode", "Experimental map mode", "Adds a Map view of nearby work (compass field with one mark per mob type per direction) and the Map | Range switcher that appears above the panel on hover. Off: the Range list only."), 26, -10)
   nb:Add(Check(nb, "OrderNearbyByProximity", "Order nearby by proximity", "Ticked (default): nearby objectives are listed closest first, by the distance to their nearest spawn. Unticked: quest-log order."), 26)

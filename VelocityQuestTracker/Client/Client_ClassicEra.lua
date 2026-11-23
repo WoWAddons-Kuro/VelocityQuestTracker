@@ -16,6 +16,7 @@ function impl.PlayerDisplayName() return UnitName("player") end
 function impl.PlayerFirstName() return UnitName("player") end
 function impl.CurrentZoneName() return GetRealZoneText() or "" end
 function impl.StockTrackerFrame() return QuestWatchFrame end
+function impl.QuestTimerFrame() return QuestTimerFrame end   -- Blizzard's standalone countdown; swallowed with the tracker
 
 -- Era quest log is index-based: select the entry, then show the standalone log frame.
 function impl.OpenQuestLog(questID)
@@ -75,6 +76,17 @@ end
 function impl.Quests()
   local quests = {}
   local numEntries = GetNumQuestLogEntries() or 0
+  -- Timed quests (SPEC-VQT-TimedQuests): Era returns remaining seconds as varargs, one per RUNNING timer,
+  -- and GetQuestIndexForTimer(i) maps the i-th to its log index. Failed / expired timers are not listed.
+  local timerSecondsByLogIndex = {}
+  if GetQuestTimers and GetQuestIndexForTimer then
+    local remaining = { GetQuestTimers() }
+    for i, secs in ipairs(remaining) do
+      local logIndex = GetQuestIndexForTimer(i)
+      if logIndex and logIndex > 0 and type(secs) == "number" then timerSecondsByLogIndex[logIndex] = secs end
+    end
+  end
+  local sampledAt = GetTime()
   local header
   for i = 1, numEntries do
     local title, level, _, isHeader, _, isComplete, _, questID = GetQuestLogTitle(i)
@@ -82,12 +94,16 @@ function impl.Quests()
       header = title
     elseif questID and questID > 0 then
       local objectives = Objectives(i, questID)
+      local timerLeft = timerSecondsByLogIndex[i]
       quests[#quests + 1] = {
         questID = questID, title = title or ("quest " .. questID), level = level or 0,
         isComplete = Client.DeriveComplete(isComplete == 1 or isComplete == true, objectives),
         isFailed = isComplete == -1,
         isWatched = IsQuestWatched and IsQuestWatched(i) and true or false,
         zoneName = header,
+        timerRemainingSeconds = timerLeft,
+        timerSampledAt = timerLeft and sampledAt or nil,
+        timerTotalSeconds = nil,                 -- Era has no total-time API
         objectives = objectives,
       }
     end
