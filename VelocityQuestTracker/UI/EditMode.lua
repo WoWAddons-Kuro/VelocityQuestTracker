@@ -60,6 +60,13 @@ local function NormaliseToTop(f, p)
   end
 end
 
+-- The secure quest-item buttons live on their own UIParent-parented layer that only MIRRORS the panel
+-- rect (see UI\ItemButtons.lua header); nothing anchors it to the panel, so every time the panel is
+-- re-placed here the layer must be told to follow. Safe in combat (returns false, no-op).
+local function SyncItemButtons()
+  if NS.ItemButtons and NS.ItemButtons.SyncToPanel then NS.ItemButtons.SyncToPanel() end
+end
+
 function EditMode.ApplyToPanel()
   local f = Panel.Frame()
   if not f then return end
@@ -71,6 +78,7 @@ function EditMode.ApplyToPanel()
   end
   f:ClearAllPoints()
   f:SetPoint(p.point, UIParent, p.point, p.x, p.y)
+  SyncItemButtons()
 end
 
 function EditMode.OnPanelMoved()
@@ -114,7 +122,10 @@ local function CreatePlaceholder()
     local point, _, _, x, y = self:GetPoint(1)
     if not point then return end
     local f = Panel.Frame()
-    if f then f:ClearAllPoints(); f:SetPoint(point, UIParent, point, x, y) end
+    if f then
+      f:ClearAllPoints(); f:SetPoint(point, UIParent, point, x, y)
+      SyncItemButtons()   -- the secure button layer mirrors the panel rect; it does not follow by itself
+    end
   end) end
   local function FollowStop() placeholder:SetScript("OnUpdate", nil) end
   if selection then

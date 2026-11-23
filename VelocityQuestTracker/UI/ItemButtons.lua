@@ -226,6 +226,13 @@ function ItemButtons.Drop(questID)
   if InCombatLockdown() then queued = true else Flush() end
 end
 
+-- Called by EditMode whenever it re-places the panel (Edit Mode drag, unlocked drag, reset, exit).
+-- Buttons are anchored inside the layer, so re-mirroring the panel rect moves them with it. No-op in
+-- combat (the layer is protected); Reconcile catches up on the next out-of-combat render.
+function ItemButtons.SyncToPanel()
+  return SyncLayer()
+end
+
 -- Called by Blocks after a render: every live questID not in `keep` is dropped, and -- out of combat --
 -- the layer is re-synced to the panel rect and every live button re-placed, since the blocks above
 -- it may have moved. In combat nothing is touched: the buttons stay where they were.
