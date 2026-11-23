@@ -111,12 +111,14 @@ else b.timer:Hide() end
 
 ## Milestones
 
-- [ ] **M1 Client**: timer fields on both flavours + `QuestTimerFrame` interface method; `/vqt dump` shows `timer=`.
-- [ ] **M2 Model**: `timerRunning`, pin to `active`, timed-first sort, `QUEST_TIMER_UPDATE` registered.
-- [ ] **M3 View**: `Remaining: mm:ss` line, tones, per-frame tick; `Danger` tone in Theme + Options; settings.
-- [ ] **M4 Stock**: swallow `QuestTimerFrame`.
-- [ ] **M5 Playtest**: a real timed quest on Forever (e.g. a Westfall/Loch Modan delivery) and on Era; verify
-      `QUEST_TIMER_UPDATE` fires on both and that failure drops the line cleanly.
+- [x] **M1 Client**: timer fields on both flavours + `QuestTimerFrame` interface method; `/vqt dump` shows `timer=`.
+- [x] **M2 Model**: `timerRunning`, pin to a card, timed-first sort, `QUEST_TIMER_UPDATE` registered.
+- [x] **M3 View**: `Remaining: mm:ss` line, tones, per-frame tick; `Danger` tone in Theme + Options; settings.
+- [x] **M4 Stock**: swallow `QuestTimerFrame`.
+- [x] **M5 Playtest (Forever)**: "Grace of An'she and Mu'sha" (Mulgore, 2026-11-23) -- clock on the hand-in card, yellow at 0:40.
+      Lesson: most timed quests are COMPLETE ON ACCEPT (deliver before it expires), so the first cut, which only ran the
+      clock on incomplete quests, drew nothing; `timerRunning` now ignores `isComplete` and the hand-in card carries the line.
+- [ ] **M5 Playtest (Era)**: verify `GetQuestTimers` / `GetQuestIndexForTimer` with a collapsed header, and that failure drops the line.
 
 ## Open questions
 
