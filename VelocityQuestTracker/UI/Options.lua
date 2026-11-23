@@ -98,15 +98,11 @@ function Options.Create()
 
   -- The two headline checkboxes, directly under the intro.
   Place(Check(content, "Enabled", "Enable Velocity Quest Tracker", "Shows the panel and hides the game's own quest tracker. Untick to put the stock tracker back."), -14)
-  -- Lock position lives in the LAYOUT PROFILE (per Edit Mode layout / manual profile), not in settings.
-  -- Same label everywhere; only the tip mentions Edit Mode where it exists.
-  local hasEditMode = NS.Profiles:Source() == "editmode"
+  -- Lock position lives in the LAYOUT PROFILE (per Edit Mode layout), not in settings.
   do
     local cb = CreateFrame("CheckButton", nil, content, "InterfaceOptionsCheckButtonTemplate")
     cb.Text:SetText("Lock position")
-    cb.tooltipText = hasEditMode
-      and "Ticked: the panel moves only in the game's Edit Mode. Unticked: hover over the panel and drag the titlebar that appears; its lock icon toggles this too. Saved with the layout profile."
-      or "Ticked: the panel cannot be dragged. Unticked: hover over the panel and drag the titlebar that appears; its lock icon toggles this too. Saved with the layout profile."
+    cb.tooltipText = "Ticked: the panel moves only in the game's Edit Mode. Unticked: hover over the panel and drag the titlebar that appears; its lock icon toggles this too. Saved with the Edit Mode layout."
     cb:SetScript("OnClick", function(self) NS.EditMode.SetPositionLocked(self:GetChecked()) end)
     cb.Update = function(self) self:SetChecked(NS.EditMode.IsPositionLocked()) end
     widgets[#widgets + 1] = cb
@@ -163,79 +159,21 @@ function Options.Create()
   nb:Add(Check(nb, "LinearSparkScale", "Linear distance scale on the spark lines", "Unticked (default): square-root scale, so the near half of the line covers the near quarter of the range and close differences get the pixels. Ticked: plain distance / range."), 26, -10)
   nb:Finish()
 
-  -- Layout profile. Panel position + lock are saved per profile (LibEditModeProfileExtension). On a client
-  -- with Edit Mode the game's layout dropdown IS the picker, so only a note is shown; on Era we show the
-  -- "micro profile" block: current profile dropdown, New (copies the current), Delete.
-  local P = NS.Profiles
+  -- Layout profile: FYI only. The profile IS the game's active Edit Mode layout (Core\LayoutProfile.lua);
+  -- the game's own Edit Mode picks layouts and moves the panel. Classic Era reaches Edit Mode from the
+  -- main menu (ESC) rather than the player-portrait menu, so say so.
+  local LP = NS.LayoutProfile
   local lp = Section("Layout profile")
-  if P:Source() == "editmode" then
-    local note = lp:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall"); note:SetWidth(BOX_W - 2 * PAD - 8); note:SetJustifyH("LEFT")
-    note.Update = function(self) self:SetText(string.format("Panel position and lock are saved per Edit Mode layout. Current layout: |cffffd100%s|r. Switch layouts in Edit Mode; a new layout inherits the current position.", P:Name())) end
-    widgets[#widgets + 1] = note
-    lp:Add(note, 28, -8, 4)
-  else
-    local row = CreateFrame("Frame", nil, lp); row:SetSize(BOX_W - 2 * PAD, 26)
-    local lbl = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight"); lbl:SetPoint("LEFT", 4, 0); lbl:SetText("This character uses")
-    local dd = CreateFrame("Frame", "VelocityQuestTrackerOptProfileDropDown", row, "UIDropDownMenuTemplate")
-    dd:SetPoint("LEFT", lbl, "RIGHT", -6, -2)
-    UIDropDownMenu_SetWidth(dd, 180)
-    UIDropDownMenu_Initialize(dd, function(self, level)
-      for _, name in ipairs(P:List()) do
-        local info = UIDropDownMenu_CreateInfo()
-        info.text, info.checked = name, (name == P:Name())
-        info.func = function() P:Select(name); UIDropDownMenu_SetText(dd, P:Name()) end
-        UIDropDownMenu_AddButton(info, level)
-      end
-    end)
-    row.Update = function() UIDropDownMenu_SetText(dd, P:Name()) end
-    widgets[#widgets + 1] = row
-    lp:Add(row, 26, -8)
-
-    StaticPopupDialogs["VELOCITYQUESTTRACKER_NEW_PROFILE"] = {
-      text = "New layout profile (copies the current one):", button1 = CREATE or "Create", button2 = CANCEL or "Cancel",
-      hasEditBox = true, maxLetters = 32, timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
-      OnAccept = function(self)
-        local name = self.editBox:GetText()
-        if P:Create(name) then Util.Print("layout profile %q created", name) else Util.Print("could not create profile %q (empty, too long, or already exists)", name) end
-        Options.Refresh()
-      end,
-      EditBoxOnEnterPressed = function(self) local parent = self:GetParent(); parent.button1:Click() end,
-      EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
-      OnShow = function(self) self.editBox:SetText(""); self.editBox:SetFocus() end,
-    }
-    StaticPopupDialogs["VELOCITYQUESTTRACKER_DELETE_PROFILE"] = {
-      text = "Delete layout profile %q? Characters using it fall back to \"Default\".", button1 = DELETE or "Delete", button2 = CANCEL or "Cancel",
-      timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
-      OnAccept = function(self, name)
-        if P:Delete(name) then Util.Print("layout profile %q deleted", name) else Util.Print("cannot delete %q (Default, or in use by this character)", name) end
-        Options.Refresh()
-      end,
-    }
-    local btns = CreateFrame("Frame", nil, lp); btns:SetSize(BOX_W - 2 * PAD, 22)
-    local newBtn = CreateFrame("Button", nil, btns, "UIPanelButtonTemplate"); newBtn:SetSize(140, 22); newBtn:SetText("New profile...")
-    newBtn:SetPoint("LEFT", 4, 0)
-    newBtn:SetScript("OnClick", function() StaticPopup_Show("VELOCITYQUESTTRACKER_NEW_PROFILE") end)
-    -- Delete acts on a profile OTHER than the current one: a second dropdown would be heavy, so it offers a menu.
-    local delBtn = CreateFrame("Button", nil, btns, "UIPanelButtonTemplate"); delBtn:SetSize(140, 22); delBtn:SetText("Delete profile...")
-    delBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
-    local delMenu = CreateFrame("Frame", "VelocityQuestTrackerOptProfileDeleteMenu", btns, "UIDropDownMenuTemplate")
-    delBtn:SetScript("OnClick", function(self)
-      UIDropDownMenu_Initialize(delMenu, function(_, level)
-        local any = false
-        for _, name in ipairs(P:List()) do
-          if name ~= P:Name() and name ~= "Default" then
-            any = true
-            local info = UIDropDownMenu_CreateInfo(); info.text, info.notCheckable = name, true
-            info.func = function() local d = StaticPopup_Show("VELOCITYQUESTTRACKER_DELETE_PROFILE", name); if d then d.data = name end end
-            UIDropDownMenu_AddButton(info, level)
-          end
-        end
-        if not any then local info = UIDropDownMenu_CreateInfo(); info.text, info.notCheckable, info.disabled = "(nothing to delete)", true, true; UIDropDownMenu_AddButton(info, level) end
-      end, "MENU")
-      ToggleDropDownMenu(1, nil, delMenu, self, 0, 0)
-    end)
-    lp:Add(btns, 22, -8)
+  local active = lp:CreateFontString(nil, "ARTWORK", "GameFontHighlight"); active:SetWidth(BOX_W - 2 * PAD - 8); active:SetJustifyH("LEFT")
+  active.Update = function(self)
+    if LP.IsResolved() then self:SetText(string.format("Active Edit Mode layout: |cffffd100%s|r", LP.Name()))
+    else self:SetText("Active Edit Mode layout: |cff888888(waiting for Edit Mode to report it)|r") end
   end
+  widgets[#widgets + 1] = active
+  lp:Add(active, 14, -8, 4)
+  local note = lp:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall"); note:SetWidth(BOX_W - 2 * PAD - 8); note:SetJustifyH("LEFT")
+  note:SetText("The panel's position and lock are saved with this layout. To move the panel or switch, create, rename or delete layouts, use the game's Edit Mode: open the Game Menu (ESC) and choose Edit Mode. A new layout inherits the current position.")
+  lp:Add(note, 40, -6, 4)
   lp:Finish()
 
   -- Reset: the current profile's panel position, or everything.
@@ -249,7 +187,7 @@ function Options.Create()
   local resetLayout = CreateFrame("Button", nil, rrow, "UIPanelButtonTemplate"); resetLayout:SetSize(160, 22); resetLayout:SetText("Reset layout")
   resetLayout:SetPoint("LEFT", 4, 0)
   resetLayout.tooltipText = "Puts the panel back on the stock tracker's position for the CURRENT layout profile only."
-  resetLayout:SetScript("OnClick", function() NS.EditMode.ResetPosition(); Util.Print("panel position reset for profile %q", P:Name()) end)
+  resetLayout:SetScript("OnClick", function() NS.EditMode.ResetPosition(); Util.Print("panel position reset for profile %q", LP.Name()) end)
   local resetAll = CreateFrame("Button", nil, rrow, "UIPanelButtonTemplate"); resetAll:SetSize(160, 22); resetAll:SetText("Reset all data...")
   resetAll:SetPoint("LEFT", resetLayout, "RIGHT", 8, 0)
   resetAll:SetScript("OnClick", function() StaticPopup_Show("VELOCITYQUESTTRACKER_RESET_ALL") end)

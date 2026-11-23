@@ -1,6 +1,19 @@
 # SPEC-VQT-LayoutProfiles: panel placement saved per layout profile
 
-- **Status:** Implemented 2026-11-22 (M1); in-game tests M2/M3 pending. Library extracted to its own repo `LibEditModeProfileExtension\` (top level), VQT declares it as a RequiredDep.
+- **Status:** Implemented 2026-11-22; **superseded in part the same day** -- see "Correction" below.
+
+## Correction (owner, 2026-11-22 evening)
+
+**Classic Era 1.15 HAS Edit Mode** (reached from the Game Menu / ESC rather than the player-portrait menu).
+Every client we ship to therefore has the game's own layout picker and position editor, so the whole
+"manual provider for clients without Edit Mode" half of this spec, the separate `LibEditModeProfileExtension`
+library and its CurseForge project, the Era profile dropdown / New / Delete block and `/vqt profile <name>`
+were built on a false premise and have been **removed**. What remains: `Core\LayoutProfile.lua` (VQT-internal,
+~150 lines) LISTENS for the active Edit Mode layout name and keeps `VelocityQuestTrackerDB.profiles[name]`
+(panel + lockPosition) in step with the game's list (create copies the active record, rename moves it,
+delete drops it). The Options "Layout profile" section is read-only: active layout + a reminder that Edit
+Mode is in the Game Menu. The sections below describe the original two-provider design for the record.
+
 - **Parent:** `PLAN-VelocityQuestTracker.md` (Positioning row), `UI\EditMode.lua`, `UI\ItemButtons.lua`
 - **Driver:** VelocitySettingsSync (today `ChatSync`) switches the Edit Mode HUD layout at login
   (`ChatSync.lua` ~L451, `C_EditMode.SetActiveLayout` / `EditModeManagerFrame:SelectLayout`). When that

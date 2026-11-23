@@ -1,9 +1,9 @@
 -- Velocity Quest Tracker: the panel in Edit Mode, through vendored LibEditMode.
 -- Pattern: KondoBags/UI/EditMode.lua. A UIParent-parented placeholder is what the library moves;
 -- the live panel follows it. Placement and the lock flag are saved PER LAYOUT PROFILE
--- (NS.Profiles:Current(), LibEditModeProfileExtension): on Forever the profile is the active Edit Mode
--- layout, so switching layouts -- in the game's dropdown or by VelocitySettingsSync at login -- moves the
--- panel to where it was saved for that layout; on Era the profile comes from the Options block.
+-- (NS.LayoutProfile.Current(), Core\LayoutProfile.lua) = the game's active Edit Mode layout, so switching
+-- layouts -- in the game's dropdown or by VelocitySettingsSync at login -- moves the panel to where it
+-- was saved for that layout. Both clients we ship to have Edit Mode (Era reaches it via the main menu).
 --
 -- First run: anchor to where the STOCK tracker sits (its TOPRIGHT in UIParent coordinates), read
 -- once before it is swallowed, so the first look lands where the player expects a tracker.
@@ -23,7 +23,7 @@ local defaultPos = { point = "TOPRIGHT", x = -90, y = -250 }
 
 -- VQT_PanelPlacement = { point, x, y, placed }, stored as VQT_LayoutProfile.panel
 local function Placement()
-  local profile = NS.Profiles:Current()
+  local profile = NS.LayoutProfile.Current()
   profile.panel = profile.panel or {}
   local p = profile.panel
   if p.point then p.placed = true end
@@ -42,9 +42,9 @@ local function Placement()
 end
 
 function EditMode.IsActive() return editing end
-function EditMode.IsPositionLocked() return NS.Profiles:Current().lockPosition ~= false end
+function EditMode.IsPositionLocked() return NS.LayoutProfile.Current().lockPosition ~= false end
 function EditMode.SetPositionLocked(locked)
-  NS.Profiles:Current().lockPosition = locked and true or false
+  NS.LayoutProfile.Current().lockPosition = locked and true or false
   EditMode.ApplyLock()
   if NS.Options and NS.Options.Refresh then NS.Options.Refresh() end
 end
@@ -211,13 +211,12 @@ function EditMode.ApplyLock()
 end
 
 function EditMode.ResetPosition()
-  NS.Profiles:Current().panel = nil
+  NS.LayoutProfile.Current().panel = nil
   EditMode.ApplyToPanel()
 end
 
 function EditMode.Status()
-  local P = NS.Profiles
-  local profile = string.format("profile %q (%s)", P:Name(), P:Source() == "editmode" and "Edit Mode layout" or "manual")
+  local profile = NS.LayoutProfile.Status()
   if not lib then return "LibEditMode not found; panel moves by drag only | " .. profile end
   return "LibEditMode minor " .. tostring(lib.hookVersion or "?") .. (editing and " (editing now)" or "") .. " | " .. profile
 end
