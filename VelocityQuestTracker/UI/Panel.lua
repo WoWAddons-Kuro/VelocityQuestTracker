@@ -136,6 +136,8 @@ local function OnUpdate()
   local over = Panel.MapModeEnabled() and HoverAllowed() and (frame:IsMouseOver(STRIP_H + STRIP_GAP, 0, 0, 0) or strip:IsMouseOver())
   if over and not strip:IsShown() then Panel.RefreshTabs(); strip:Show()
   elseif not over and strip:IsShown() then strip:Hide() end
+  -- Titlebar (drag handle + lock toggle) lives on the secure item-button layer: UI\ItemButtons.lua
+  NS.ItemButtons.TickTitleBar()
 end
 
 function Panel.Create()

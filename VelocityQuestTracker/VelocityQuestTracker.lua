@@ -11,6 +11,7 @@ local DEFAULT_SETTINGS = {
   Enabled = true,
   RequireShiftToInteract = false,
   RequireShiftForHover = false,
+  TitleBarOnlyWhenUnlocked = true,       -- the hover titlebar (drag handle + lock toggle) appears only while unlocked
   ActiveWindowSeconds = 300,
   ActiveProximityYards = 100,            -- a spawn of unfinished work within this range keeps the quest active; 0 = off
   HandInArriveYards = 25,                -- a hand-in card holds its yellow while the turn-in NPC is within this; 0 = off

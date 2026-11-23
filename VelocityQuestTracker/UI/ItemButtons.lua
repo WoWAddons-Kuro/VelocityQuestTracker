@@ -226,6 +226,95 @@ function ItemButtons.Drop(questID)
   if InCombatLockdown() then queued = true else Flush() end
 end
 
+-- Titlebar ---------------------------------------------------------------------------------------
+-- A hover bar ABOVE the panel (VQT_TitleBar) that drags the whole panel and carries a lock/unlock
+-- toggle at its right end. It lives on the secure layer, NOT the panel: the panel stays chrome-free
+-- and click-through, and the bar inherits the layer's rule -- geometry only changes out of combat.
+-- GEOMETRY RULE: the bar hangs off the layer's TOP edge (anchored BOTTOMLEFT -> layer TOPLEFT) so the
+-- layer's own rect stays an exact mirror of the panel whatever the bar's visibility; the panel content
+-- and the layer content (buttons) therefore line up at all times.
+-- Visibility: on hover; when position is locked only if the "titlebar only when unlocked" setting is off.
+local bar
+local BAR_H, BAR_GAP = 18, 4
+local STRIP_CLEARANCE = 22       -- Panel's Map|Range strip (18 + 4) sits in the same place; bar goes above it
+
+local function LockTex(icon, locked)
+  if locked then icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-LOCK"); icon:SetTexCoord(0, 0.71875, 0, 0.875)
+  else icon:SetTexture("Interface\\Buttons\\LockButton-Unlocked-Up"); icon:SetTexCoord(0.15, 0.85, 0.15, 0.85) end
+end
+
+local function BarShouldShow()
+  if InCombatLockdown() or not NS.Interact.HoverAllowed() then return false end
+  if NS.EditMode.IsActive() then return false end
+  if NS.EditMode.IsPositionLocked() and NS.db.settings.TitleBarOnlyWhenUnlocked ~= false then return false end
+  local panel = NS.Panel.Frame()
+  if not panel or not panel:IsShown() then return false end
+  -- the panel rect grown upward by the strip + bar, so the mouse can travel up into the bar without a gap
+  return panel:IsMouseOver(STRIP_CLEARANCE + BAR_GAP + BAR_H, 0, 0, 0) or (bar and bar:IsMouseOver())
+end
+
+local function BuildBar()
+  if bar then return bar end
+  local L = Layer()
+  bar = CreateFrame("Frame", "VelocityQuestTrackerTitleBar", L)
+  bar:SetSize(T.PanelWidth, BAR_H)
+  -- above the Map|Range strip's slot (the strip only exists in experimental map mode; keep one layout)
+  bar:SetPoint("BOTTOMLEFT", L, "TOPLEFT", 0, (NS.Panel.MapModeEnabled() and STRIP_CLEARANCE or 0) + BAR_GAP)
+  bar:SetFrameLevel(40)
+  bar:Hide()
+  bar.bg = bar:CreateTexture(nil, "BACKGROUND"); bar.bg:SetAllPoints(); T.SetColour(bar.bg, T.Tone.Wash, T.WashAlpha)
+  bar.title = T.Text(bar, T.LabelSize, T.Tone.Label); bar.title:SetPoint("LEFT", T.PadX, 0); bar.title:SetText("Velocity Quest Tracker")
+  bar:EnableMouse(true)
+  bar:RegisterForDrag("LeftButton")
+  bar:SetScript("OnDragStart", function(self)
+    if NS.EditMode.IsActive() or NS.EditMode.IsPositionLocked() or not NS.Interact.ClickAllowed() then return end
+    local panel = NS.Panel.Frame(); if not panel then return end
+    panel:StartMoving()
+    -- the layer (and this bar, and the buttons) is not anchored to the panel: follow it every frame
+    self:SetScript("OnUpdate", function() SyncLayer() end)
+  end)
+  bar:SetScript("OnDragStop", function(self)
+    self:SetScript("OnUpdate", nil)
+    local panel = NS.Panel.Frame(); if not panel then return end
+    panel:StopMovingOrSizing()
+    NS.EditMode.OnPanelMoved()        -- normalises to TOP*, saves to the layout profile, re-syncs the layer
+  end)
+  local lock = CreateFrame("Button", nil, bar)
+  lock:SetSize(BAR_H, BAR_H); lock:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
+  lock.icon = lock:CreateTexture(nil, "ARTWORK"); lock.icon:SetPoint("CENTER"); lock.icon:SetSize(12, 12)
+  lock:SetScript("OnClick", function()
+    if not NS.Interact.ClickAllowed() then return end
+    NS.EditMode.SetPositionLocked(not NS.EditMode.IsPositionLocked())
+    ItemButtons.RefreshTitleBar()
+  end)
+  lock:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(NS.EditMode.IsPositionLocked() and "Position locked. Click to unlock, then drag this bar to move the tracker." or "Position unlocked. Drag this bar to move the tracker; click to lock.", nil, nil, nil, nil, true)
+    GameTooltip:Show()
+  end)
+  lock:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  bar.lock = lock
+  return bar
+end
+
+function ItemButtons.RefreshTitleBar()
+  if not bar then return end
+  T.ApplyWash(bar.bg)
+  LockTex(bar.lock.icon, NS.EditMode.IsPositionLocked())
+  bar:ClearAllPoints()
+  bar:SetPoint("BOTTOMLEFT", Layer(), "TOPLEFT", 0, (NS.Panel.MapModeEnabled() and STRIP_CLEARANCE or 0) + BAR_GAP)
+end
+
+-- Called every frame by Panel's OnUpdate (the panel does not take the mouse at rest; hover is polled).
+function ItemButtons.TickTitleBar()
+  local want = BarShouldShow()
+  if want and not (bar and bar:IsShown()) then
+    BuildBar(); SyncLayer(); ItemButtons.RefreshTitleBar(); bar:Show()
+  elseif not want and bar and bar:IsShown() and not bar:GetScript("OnUpdate") then     -- never hide mid-drag
+    bar:Hide()
+  end
+end
+
 -- Called by EditMode whenever it re-places the panel (Edit Mode drag, unlocked drag, reset, exit).
 -- Buttons are anchored inside the layer, so re-mirroring the panel rect moves them with it. No-op in
 -- combat (the layer is protected); Reconcile catches up on the next out-of-combat render.

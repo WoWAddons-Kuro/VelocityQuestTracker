@@ -99,15 +99,20 @@ function Options.Create()
   -- The two headline checkboxes, directly under the intro.
   Place(Check(content, "Enabled", "Enable Velocity Quest Tracker", "Shows the panel and hides the game's own quest tracker. Untick to put the stock tracker back."), -14)
   -- Lock position lives in the LAYOUT PROFILE (per Edit Mode layout / manual profile), not in settings.
+  -- Label and tip differ by client: only an Edit Mode client can "edit with Edit Mode".
+  local hasEditMode = NS.Profiles:Source() == "editmode"
   do
     local cb = CreateFrame("CheckButton", nil, content, "InterfaceOptionsCheckButtonTemplate")
-    cb.Text:SetText("Lock position (edit with Edit Mode)")
-    cb.tooltipText = "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by its own frame. Saved with the layout profile."
+    cb.Text:SetText(hasEditMode and "Lock position (edit with Edit Mode)" or "Lock position")
+    cb.tooltipText = hasEditMode
+      and "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by the titlebar that appears when you hover over it. Saved with the layout profile."
+      or "Ticked: the panel cannot be dragged. Unticked: hover over the panel and drag the titlebar that appears. The lock icon on the titlebar toggles this too. Saved with the layout profile."
     cb:SetScript("OnClick", function(self) NS.EditMode.SetPositionLocked(self:GetChecked()) end)
     cb.Update = function(self) self:SetChecked(NS.EditMode.IsPositionLocked()) end
     widgets[#widgets + 1] = cb
     Place(cb, -4)
   end
+  Place(Check(content, "TitleBarOnlyWhenUnlocked", "Show titlebar on hover only when unlocked", "Ticked (default): the titlebar with the drag handle and lock icon appears on hover only while the position is unlocked. Unticked: it also appears when locked, so you can unlock from the panel itself."), -4)
   Place(Check(content, "RequireShiftToInteract", "Require Shift key to interact with panel", "Ticked: clicks on quest titles only open the quest log while Shift is held, so the panel never catches stray clicks."), -4)
   Place(Check(content, "RequireShiftForHover", "Hold Shift for hover feedback", "Ticked: the place-line summary card and title highlight only appear while Shift is held."), -4)
 
