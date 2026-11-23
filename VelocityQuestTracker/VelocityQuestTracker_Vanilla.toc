@@ -5,15 +5,15 @@
 ## Version: @project-version@
 ## SavedVariables: VelocityQuestTrackerDB
 ## SavedVariablesPerCharacter: VelocityQuestTrackerCharDB
-## RequiredDeps: QuestieDB
+## RequiredDeps: QuestieDB, LibEditModeProfileExtension
 ## OptionalDeps: LibStub, LibEditMode
 ## X-Website: https://github.com/WoWAddons-Kuro/VelocityQuestTracker
 ## X-Curse-Project-ID: 1820291
 ## X-Dependency-ProjectID-questiedb: 1696795
+## X-Dependency-ProjectID-libeditmodeprofileextension: 0
 
 Libs\LibStub\LibStub.lua
 Libs\LibEditMode\embed.xml
-Libs\LibEditModeProfileExtension\embed.xml
 Libs\LibZoneBrightness\LibZoneBrightness-1.0.lua
 
 Core\Util.lua

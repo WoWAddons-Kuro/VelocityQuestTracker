@@ -5,6 +5,7 @@ move-folders:
 
 required-dependencies:
   - questiedb
+  - libeditmodeprofileextension
 
 externals:
   VelocityQuestTracker/Libs/LibZoneBrightness: https://github.com/WoWAddons-Kuro/LibZoneBrightness

@@ -1,5 +1,0 @@
-LibEditModeProfileExtension-1.0 -- our own library (WoWAddons-Kuro), first consumer VelocityQuestTracker.
-Canonical copy lives HERE until a second consumer appears; then it moves to its own repo and is
-vendored back like LibEditMode. Spec: VelocityQuestTracker\SPECS\SPEC-VQT-LayoutProfiles.md.
-API ground truth: AddonManagement\_EXTERNAL_APIS\wow_edit_mode_layouts_api.md.
-Licence: same as the addon (LICENSE at repo root).
