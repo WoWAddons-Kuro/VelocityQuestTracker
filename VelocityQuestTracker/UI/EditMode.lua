@@ -50,8 +50,15 @@ function EditMode.SetPositionLocked(locked)
 end
 
 -- Profile switched (layout change, create, rename, reset): place the panel where THIS profile says.
+-- If Edit Mode is open (the game's layout dropdown switches layouts live), the placeholder the library
+-- moves must follow too, or the overlay stays on the old layout's spot while the panel has moved.
 function EditMode.OnProfileChanged()
-  if Panel.Frame() then EditMode.ApplyToPanel(); EditMode.ApplyLock() end
+  if not Panel.Frame() then return end
+  EditMode.ApplyToPanel(); EditMode.ApplyLock()
+  if editing and placeholder then
+    local p = Placement()
+    placeholder:ClearAllPoints(); placeholder:SetPoint(p.point, UIParent, p.point, p.x, p.y)
+  end
 end
 
 -- The panel's height changes with its content (map view, blocks arriving). It must grow DOWN from a
