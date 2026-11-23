@@ -22,7 +22,7 @@
 | Count text | Keep `done/total` (`6/7`) for v1. |
 | No-count objectives | One segment; completing it is progress like any other. |
 | Large counts | Segments: **10 per segment row**, wrapping to further rows (two segment rows fit in one text line; 20 covers almost every quest). Never collapse to a proportional bar. Map stacks: cap at 10 marks per cell (M3). |
-| Hiding done work | Two settings, both default off: **Hide completed segments** (done units are not drawn, the bar shows only what is left) and **Hide fully completed rows** (an objective row at `have == need` leaves the block after its final fade). |
+| Hiding done work | Two settings, **both default ON since 2026-11-22** (were off): **Hide completed segments** (done units are not drawn, the bar shows only what is left) and **Hide fully completed rows** (an objective row at `have == need` leaves the block after its final fade). |
 | Font | `Fonts\ARIALN.TTF`, 13 px rows, 11 px labels (mockup 14/12). |
 | Shared code with Split Tracker | None. Each addon owns its `Client\` layer and `Theme` (workspace rule). |
 | Objective -> source IDs | Do what Questie does. Pull Questie's own objective-matching code (installed at `_forever_\Interface\AddOns\Questie`) and mirror it; QuestieDB `Quest.objectives` is already in Blizzard objective order. Research item for M3, not M1. |
