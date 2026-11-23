@@ -296,6 +296,21 @@ local function ProximityTouch(q, now)
   end
 end
 
+-- Objective-less errand quests (owner 2026-11-22, Mulgore: 755 "Rites of the Earthmother"). Era's
+-- "go talk to X" quests carry NO leaderboard line in the log and are NOT flagged complete on accept
+-- (Forever's equivalents show a "Speak with X" objective, or are complete at once). The views draw
+-- per objective, so such a quest categorised fine (nearby) but rendered nothing. Give it the one
+-- objective the game left out: a "talk" objective named for the finisher (QuestieDB) or the title.
+-- Location.SpawnsForObjective maps type "talk" to the finisher's spawns, so the spark/proximity work.
+local function SynthesiseTalkObjective(q)
+  if #q.objectives > 0 or q.isComplete then return end
+  local Location = NS.Location
+  local f = Location and Location.IsAvailable() and Location.FinisherFor(q.questID)
+  local name = f and f.source and f.source.name
+  name = name and ("Speak with " .. name) or q.title
+  q.objectives[1] = { index = 1, text = name, name = name, type = "talk", have = 0, need = 1, done = false, counted = false, synthetic = true }
+end
+
 -- Build VQT_Model_Snapshot:
 --   { quests = { VQT_Quest + rank + category + recent }, byCategory = { turnin = {...}, active = {...}, nearby = {...}, other = {...} },
 --     turninPlaces = { { place, quests } ... }, otherZones = { { zone, quests } ... }, zone = string, now = number }
@@ -303,6 +318,7 @@ function Model.Build()
   local now = GetTime()
   local zone = Client.CurrentZoneName() or ""
   local quests = Client.Quests() or {}
+  for _, q in ipairs(quests) do SynthesiseTalkObjective(q) end
   local changes = DiffCounts(quests, now)
 
   local snap = { quests = {}, byCategory = { turnin = {}, turnin_card = {}, active = {}, nearby = {}, other = {}, other_card = {} }, turninPlaces = {}, otherZones = {}, zone = zone, now = now, changes = changes }

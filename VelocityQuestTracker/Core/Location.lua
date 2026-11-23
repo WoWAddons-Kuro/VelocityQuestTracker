@@ -28,6 +28,12 @@ local spawnCache = {}           -- "npc:123" | "object:456" -> { VQT_SpawnYards.
 local objectiveSourceCache = {} -- questID -> { [objIndex] = { VQT_Source... } }
 local finisherCache = {}        -- questID -> { source = VQT_Source, spawn = VQT_SpawnYards } | false
 
+-- Entity readers, taken from the LibQuestieDB table in Init() -- NEVER from the _G.QuestDB /
+-- NpcDB / ItemDB / ObjectDB shorthand globals QuestieDB also sets. Those names are generic and other
+-- addons clobber them (2026-11-22, Era: WhatsThatFor\main.lua does `ItemDB = { Items = {} }`, loads
+-- after us alphabetically, and ItemDB.name(...) became "attempt to call a nil value" at every rebuild).
+local QuestDB, NpcDB, ItemDB, ObjectDB
+
 local function DecodeTable(src)
   if type(src) == "table" then return src end
   if type(src) ~= "string" then return {} end
@@ -43,6 +49,11 @@ function Location.Init()
   if not LibQuestieDB then unavailableReason = "QuestieDB not loaded"; return false end
   local ok, msg = LibQuestieDB.RequireContract(REQUIRED_CONTRACT)
   if not ok then unavailableReason = msg or "contract mismatch"; Util.WarnOnce("questiedb", unavailableReason); return false end
+  QuestDB, NpcDB, ItemDB, ObjectDB = LibQuestieDB.Quest, LibQuestieDB.Npc, LibQuestieDB.Item, LibQuestieDB.Object
+  if not (QuestDB and NpcDB and ItemDB and ObjectDB) then unavailableReason = "QuestieDB entity readers missing"; Util.WarnOnce("questiedb", unavailableReason); return false end
+  if _G.ItemDB ~= ItemDB or _G.NpcDB ~= NpcDB or _G.ObjectDB ~= ObjectDB or _G.QuestDB ~= QuestDB then
+    Util.WarnOnce("questiedb-globals", "another addon overwrote a QuestieDB global (ItemDB/NpcDB/ObjectDB/QuestDB); VQT uses LibQuestieDB.* directly and is unaffected")
+  end
   local zone = LibQuestieDB.Support and LibQuestieDB.Support.Get and LibQuestieDB.Support.Get("ZoneDB")
   local p = zone and zone.private
   if p then
@@ -243,6 +254,12 @@ end
 
 -- Spawns for one objective: array of VQT_SpawnYards across all its sources.
 function Location.SpawnsForObjective(quest, objective)
+  -- Synthetic "talk" objective (Model.SynthesiseTalkObjective): the work IS the finisher.
+  if objective.type == "talk" then
+    local f = Location.FinisherFor(quest.questID)
+    local spawns = f and f.spawns
+    return (spawns and #spawns > 0) and spawns or nil
+  end
   local srcs = Location.SourcesForQuest(quest)[objective.index]
   if not srcs or #srcs == 0 then return nil end
   local out = {}
