@@ -99,14 +99,14 @@ function Options.Create()
   -- The two headline checkboxes, directly under the intro.
   Place(Check(content, "Enabled", "Enable Velocity Quest Tracker", "Shows the panel and hides the game's own quest tracker. Untick to put the stock tracker back."), -14)
   -- Lock position lives in the LAYOUT PROFILE (per Edit Mode layout / manual profile), not in settings.
-  -- Label and tip differ by client: only an Edit Mode client can "edit with Edit Mode".
+  -- Same label everywhere; only the tip mentions Edit Mode where it exists.
   local hasEditMode = NS.Profiles:Source() == "editmode"
   do
     local cb = CreateFrame("CheckButton", nil, content, "InterfaceOptionsCheckButtonTemplate")
-    cb.Text:SetText(hasEditMode and "Lock position (edit with Edit Mode)" or "Lock position")
+    cb.Text:SetText("Lock position")
     cb.tooltipText = hasEditMode
-      and "Ticked: the panel moves only in the game's Edit Mode. Unticked: it can also be dragged by the titlebar that appears when you hover over it. Saved with the layout profile."
-      or "Ticked: the panel cannot be dragged. Unticked: hover over the panel and drag the titlebar that appears. The lock icon on the titlebar toggles this too. Saved with the layout profile."
+      and "Ticked: the panel moves only in the game's Edit Mode. Unticked: hover over the panel and drag the titlebar that appears; its lock icon toggles this too. Saved with the layout profile."
+      or "Ticked: the panel cannot be dragged. Unticked: hover over the panel and drag the titlebar that appears; its lock icon toggles this too. Saved with the layout profile."
     cb:SetScript("OnClick", function(self) NS.EditMode.SetPositionLocked(self:GetChecked()) end)
     cb.Update = function(self) self:SetChecked(NS.EditMode.IsPositionLocked()) end
     widgets[#widgets + 1] = cb
