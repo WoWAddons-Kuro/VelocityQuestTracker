@@ -205,13 +205,22 @@ local MAX_SPECIFIC_WORK_ZONES = 3
 -- "Fishing", "Shaman"). The sort stays the LABEL (the "+1 in Fishing" line is right as a category),
 -- but it is not a PLACE: Gaffer Jacks could never be in-zone, so it never got a card (owner
 -- 2026-11-22). Place for a sort-filed quest = QuestieDB's spawns (WorkZonesFor), then QuestieDB's
--- own zoneOrSort, then -- last -- the header, so the quest still groups somewhere when nothing knows.
+-- own zoneOrSort, then the FINISHER's zone (Gaffer Jacks are fished -- no drop spawns -- and its
+-- zoneOrSort is the Fishing sort; Wizbang stands in Auberdine, so it is a Darkshore quest; owner
+-- 2026-11-25), then -- last -- the header, flagged q.noPlace so Categorise can treat "tracked" as the
+-- only signal it will ever get.
 function Model.HeaderZoneOrNil(q)
   local Location = NS.Location
   if not (Location and Location.IsAvailable and Location.IsAvailable()) then return q.zoneName end
   if Location.IsZoneName(q.zoneName) then return q.zoneName end
   q.headerIsSort = true
-  return Location.QuestZoneName(q.questID) or q.zoneName
+  local z = Location.QuestZoneName(q.questID)
+  if z then return z end
+  local f = Location.FinisherFor(q.questID)
+  if f and f.spawn then z = Location.ZoneNameForArea(f.spawn.areaID) end
+  if z then return z end
+  q.noPlace = true
+  return q.zoneName
 end
 local HeaderZoneOrNil = Model.HeaderZoneOrNil
 
@@ -236,6 +245,10 @@ local function Categorise(q, now, zone)
   -- A COMPLETE timed quest (carry X to Y before it burns: complete on accept, timer runs until hand-in)
   -- is a hand-in card with the clock on it.
   if q.timerRunning then return q.isComplete and "turnin_card" or "active" end
+  -- A sort-filed quest nothing can place (Gaffer Jacks: fished, so no spawns; zoneOrSort is a sort;
+  -- owner 2026-11-25): it can never be in-zone, so TRACKED is the whole signal. Tracked -> a card under
+  -- its own "+1 in Fishing" line (the other_card path); untracked -> that line alone.
+  if q.noPlace and q.isWatched then return "other_card" end
   local at = lastActivityAt[q.questID]
   local window = Settings().ActiveWindowSeconds or 300
   local recentlyActive = at and (now - at) < window
