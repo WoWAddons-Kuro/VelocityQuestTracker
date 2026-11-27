@@ -153,10 +153,8 @@ function Options.Create()
     function(v) return string.format("Fade to dim: %.1f s", v) end), 44, -10)
   tm:Finish()
 
-  -- Timed quests (SPEC-VQT-TimedQuests): a running clock always keeps its card; the countdown line's colour steps.
+  -- Timed quests (SPEC-VQT-TimedQuests): a running clock always keeps its card; the countdown line is yellow and turns red.
   local tq = Section("Timed quests")
-  tq:Add(Slider(tq, "VelocityQuestTrackerOptTimerWarn", "TimerWarnSeconds", 60, 10, 300, 5,
-    function(v) return string.format("\"Remaining:\" turns yellow with %d s left", v) end), 44, -10)
   tq:Add(Slider(tq, "VelocityQuestTrackerOptTimerDanger", "TimerDangerSeconds", 15, 0, 120, 5,
     function(v) if v <= 0 then return "\"Remaining:\" never turns red" end return string.format("\"Remaining:\" turns red with %d s left", v) end), 44, -10)
   tq:Finish()

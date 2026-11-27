@@ -17,7 +17,7 @@ it onto a nearby/other line after `ActiveWindowSeconds` hides the clock exactly 
 |---|---|
 | 1 | A quest with a running timer is **always a card** (category `active`) while the timer runs: no zone test, no activity window, no auto-untrack. |
 | 2 | The countdown is **its own centred line directly under the title**: `Remaining: mm:ss` (hours as `h:mm:ss` when >= 1 h). |
-| 3 | Tone: `Label` -> `Recent` (yellow) under **60 s** -> new `Danger` (red) under **15 s**. Thresholds and the red are settings. |
+| 3 | Tone: `Recent` (yellow) the whole time -> new `Danger` (red) under **15 s**. Threshold and the red are settings. (Originally `Label` until 60 s, then yellow; owner 2026-11-27: a running clock is always yellow and drawn at `RowSize`, not `LabelSize`, so it is obvious. `TimerWarnSeconds` removed.) |
 | 4 | Timed cards sort **first** in the active bucket (rank is otherwise append-only; a clock is the one legitimate reason to jump the queue). |
 | 5 | Blizzard's `QuestTimerFrame` is swallowed alongside the stock tracker. |
 | 6 | A **failed** timed quest (`isFailed`) loses the countdown line and the pin; it is categorised as today. |
@@ -80,13 +80,13 @@ Notes saved to `AddonManagement\_EXTERNAL_APIS\wow_quest_timer_api.md`.
 if quest.timerRunning then
   local left = math.max(0, quest.timerRemainingSeconds - (now - quest.timerSampledAt))
   b.timer:SetText("Remaining: " .. Blocks.FormatTimer(left))     -- mm:ss | h:mm:ss
-  T.SetColour(b.timer, TimerTone(left))                           -- Label | Recent < TimerWarnSeconds | Danger < TimerDangerSeconds
-  b.timer:Show(); y = y - T.LabelSize - 2
+  T.SetColour(b.timer, TimerTone(left))                           -- Recent (yellow) | Danger < TimerDangerSeconds
+  b.timer:Show(); y = y - T.RowSize - 2
   anyAnim = true                                                   -- ticks every frame via Panel.OnUpdate
 else b.timer:Hide() end
 ```
 
-- `b.timer` is a `T.Text(b, T.LabelSize)` created in `AcquireBlock`, centred, anchored under `titleButton`.
+- `b.timer` is a `T.Text(b, T.RowSize)` (one size up from the title, so a running clock is obvious) created in `AcquireBlock`, centred, anchored under `titleButton`.
 - `anyAnim = true` is what makes `Blocks.animating` true, so `Panel.OnUpdate` re-renders each frame while a timer card
   exists. Rendering already runs per frame during segment pops; cost is one `string.format` per timed quest.
 - `Blocks.FormatTimer(secs)`: `floor`, `%d:%02d` or `%d:%02d:%02d`.
@@ -105,7 +105,6 @@ else b.timer:Hide() end
 
 | Key | Default | Meaning |
 |---|---|---|
-| `TimerWarnSeconds` | 60 | below this the countdown is Recent (yellow) |
 | `TimerDangerSeconds` | 15 | below this the countdown is Danger (red) |
 | `Tone.Danger` | `#e0564d` | the red |
 

@@ -296,7 +296,7 @@ local function AcquireBlock(questID)
   b.titleButton:SetScript("OnLeave", OnTitleLeave)
   b.titleButton:SetScript("OnClick", OnTitleClick)
   -- timed-quest countdown line (hidden unless the quest has a running timer; see RenderBlock)
-  b.timer = T.Text(b, T.LabelSize, T.Tone.Label)
+  b.timer = T.Text(b, T.RowSize, T.Tone.Recent)
   b.timer:SetJustifyH("CENTER"); b.timer:SetWidth(T.PanelWidth - 2 * T.PadX); b.timer:Hide()
   b.rows = {}
   blocksByQuest[questID] = b
@@ -308,8 +308,9 @@ end
 -- Timed quest countdown (SPEC-VQT-TimedQuests): "Remaining: mm:ss" centred under the title. Seconds
 -- are the model's last sample extrapolated with GetTime(), so no API call per frame; the block
 -- reports itself animating while a clock runs so Panel.OnUpdate re-renders every frame.
--- Tones: Label, then Recent (yellow) under TimerWarnSeconds, then Danger (red) under TimerDangerSeconds.
+-- Tones: Recent (yellow) the whole time, Danger (red) under TimerDangerSeconds (owner 2026-11-27).
 local TIMER_LINE_GAP = 2
+local TIMER_TEXT_SIZE = T.RowSize      -- one step up from the title's LabelSize: a running clock must be obvious
 function Blocks.FormatTimer(seconds)
   seconds = math.floor(math.max(0, seconds or 0) + 0.5)
   local h, m, s = math.floor(seconds / 3600), math.floor(seconds % 3600 / 60), seconds % 60
@@ -323,8 +324,7 @@ end
 local function TimerTone(left)
   local s = Settings()
   if left < (s.TimerDangerSeconds or 15) then return T.Tone.Danger end
-  if left < (s.TimerWarnSeconds or 60) then return T.Tone.Recent end
-  return T.Tone.Label
+  return T.Tone.Recent
 end
 
 local function RenderBlock(b, quest, now)
@@ -342,7 +342,7 @@ local function RenderBlock(b, quest, now)
     b.timer:ClearAllPoints()
     b.timer:SetPoint("TOP", b, "TOP", 0, y - TIMER_LINE_GAP)
     b.timer:Show()
-    y = y - TIMER_LINE_GAP - T.LabelSize - 4
+    y = y - TIMER_LINE_GAP - TIMER_TEXT_SIZE - 4
     anyAnim = true                                   -- the clock ticks: re-render each frame
   else
     b.timer:Hide()
